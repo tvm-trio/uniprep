@@ -1,9 +1,9 @@
-import { Controller, Get, Post } from '@nestjs/common';
+import { Controller, Get, Post, Delete } from '@nestjs/common';
 import { DbFillService } from './db_fill.service';
 
 @Controller('db-fill')
 export class DbFillController {
-  constructor(private dbFillService: DbFillService) {}
+  constructor(private dbFillService: DbFillService) { }
 
   @Get('all-topic')
   async findAll() {
@@ -24,4 +24,11 @@ export class DbFillController {
   async answersNum() {
     return await this.dbFillService.answersInfo();
   }
+
+  @Delete('delete-empty-topics')
+  async deleteEmptyTopics() {
+    return this.dbFillService.deleteEmptyTopics();
+  }
+
+
 }

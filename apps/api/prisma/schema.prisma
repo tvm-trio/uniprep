@@ -109,6 +109,10 @@ model Flashcard {
   xata_updatedat DateTime @default(now()) @db.Timestamptz(6)
   xata_id        String   @unique @default(dbgenerated("('rec_'::text || (xata_private.xid())::text)"))
   xata_version   Int      @default(0)
+  ef             Float    @default(2.5)
+  interval       Int      @default(1)
+  nextReview     DateTime @default(now())
+  repetition     Int      @default(0)
   Answers        Answer[]
   Topic          Topic    @relation(fields: [topic_id], references: [id])
 }

@@ -12,7 +12,7 @@ interface InfoObj {
 
 @Injectable()
 export class DbFillService {
-  constructor(private prisma: PrismaClient) {}
+  constructor(private prisma: PrismaClient) { }
 
   async findAll() {
     return this.prisma.topic.findMany();
@@ -99,4 +99,22 @@ export class DbFillService {
       topicsWithNoText: [...new Set(topicsWithNoText)],
     };
   }
+
+  async deleteEmptyTopics() {
+    const deleted = await this.prisma.topic.deleteMany({
+      where: {
+        Flashcard: {
+          none: {}
+        }
+      }
+    });
+
+    return {
+      message: "Empty topics deleted",
+      deleted: deleted.count
+    };
+  }
+
+
+
 }
