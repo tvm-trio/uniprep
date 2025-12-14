@@ -1,0 +1,1 @@
+export const ENTRY_TEST_CARDS_NUMBER = 30;

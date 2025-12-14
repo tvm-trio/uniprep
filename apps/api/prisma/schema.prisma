@@ -102,14 +102,20 @@ model PlanTopic {
 }
 
 model Flashcard {
-  id             String   @id @default(uuid()) @db.Uuid
-  topic_id       String   @db.Uuid
-  question       String
   xata_createdat DateTime @default(now()) @db.Timestamptz(6)
   xata_updatedat DateTime @default(now()) @db.Timestamptz(6)
   xata_id        String   @unique @default(dbgenerated("('rec_'::text || (xata_private.xid())::text)"))
   xata_version   Int      @default(0)
-  Answers        Answer[]
+
+  id             String   @id @default(uuid()) @db.Uuid
+  topic_id       String   @db.Uuid
+  question       String
+  answers        Answer[]
+  interval     Int      @default(1)
+  repetition   Int      @default(0)
+  ef           Float    @default(2.5)
+  nextReview   DateTime @default(now())
+
   Topic          Topic    @relation(fields: [topic_id], references: [id])
 }
 

@@ -60,7 +60,7 @@ export class DbFillService {
             data: {
               question: elem.question,
               topic_id: topic.id,
-              Answers: {
+              answers: {
                 create: elem.answers,
               },
             },

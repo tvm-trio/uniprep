@@ -5,7 +5,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import type { SignInBody, SignUpBody } from './interfaces';
+import type {
+  SendGreetingEmailBody,
+  SignInBody,
+  SignUpBody,
+} from './interfaces';
 import { compareValue, hashValue } from './utils';
 import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '@common/constants';
 import { MailService } from '../mail/mail.service';
@@ -17,6 +21,21 @@ export class AuthService {
     private jwt: JwtService,
     private mailService: MailService,
   ) {}
+
+  async sendGreetingEmail({ email, userId }: SendGreetingEmailBody) {
+    await this.mailService.sendMail(
+      {
+        to: email,
+        subject: 'Welcome to UniPrep!',
+        text: 'Thank you for registering.',
+      },
+      'welcome',
+      {
+        userEmail: email,
+        userId: userId,
+      },
+    );
+  }
 
   async signUp(body: SignUpBody) {
     const { email, password } = body;
@@ -31,22 +50,7 @@ export class AuthService {
       data: { email, password: hashed },
     });
 
-    try {
-      await this.mailService.sendMail(
-        {
-          to: user.email,
-          subject: 'Welcome to UniPrep!',
-          text: 'Thank you for registering.',
-        },
-        'welcome',
-        {
-          userEmail: user.email,
-          userId: user.id,
-        },
-      );
-    } catch (error) {
-      console.error('Failed to send welcome email:', error);
-    }
+    await this.sendGreetingEmail({ email: user.email, userId: user.id });
 
     const tokens = await this.generateTokens(user.id, user.email);
     await this.updateRefreshToken(user.id, tokens.refresh_token);
