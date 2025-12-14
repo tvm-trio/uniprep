@@ -4,7 +4,6 @@ RUN apk add --no-cache python3 make g++
 
 WORKDIR /app
 
-# тут копіюється ТІЛЬКИ apps/api
 COPY . .
 
 RUN npm install
