@@ -34,9 +34,9 @@ describe('StudyPlan (e2e)', () => {
 
     await prisma.planTopic.deleteMany();
     await prisma.studyPlan.deleteMany();
-
     await prisma.notification.deleteMany();
-
+    await prisma.answer.deleteMany();
+    await prisma.flashcard.deleteMany();
     await prisma.topic.deleteMany();
     await prisma.subject.deleteMany();
     await prisma.user.deleteMany();
@@ -62,14 +62,14 @@ describe('StudyPlan (e2e)', () => {
       where: { email: 'e2e@test.com' },
     });
     testUserId = user.id;
-  });
+  }, 60000);
 
   afterAll(async () => {
     await prisma.planTopic.deleteMany();
     await prisma.studyPlan.deleteMany();
-
     await prisma.notification.deleteMany();
-
+    await prisma.answer.deleteMany();
+    await prisma.flashcard.deleteMany();
     await prisma.topic.deleteMany();
     await prisma.subject.deleteMany();
     await prisma.user.deleteMany();
