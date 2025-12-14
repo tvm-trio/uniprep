@@ -13,13 +13,13 @@
   "devDependencies": {
     "@commitlint/cli": "^20.2.0",
     "@commitlint/config-conventional": "^20.2.0",
+    "eslint": "^9.18.0",
+    "eslint-config-prettier": "^10.0.1",
+    "eslint-plugin-prettier": "^5.2.2",
     "husky": "^9.1.7",
     "prettier": "^3.6.2",
     "turbo": "^2.5.6",
     "typescript": "5.9.2",
-    "eslint": "^9.18.0",
-    "eslint-config-prettier": "^10.0.1",
-    "eslint-plugin-prettier": "^5.2.2",
     "typescript-eslint": "^8.20.0"
   },
   "engines": {
@@ -29,5 +29,11 @@
   "workspaces": [
     "apps/*",
     "packages/*"
-  ]
+  ],
+  "dependencies": {
+    "dir": "^0.1.2",
+    "in": "^0.19.0",
+    "root": "^3.2.0",
+    "the": "^1.0.2"
+  }
 }
