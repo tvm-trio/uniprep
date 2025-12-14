@@ -6,7 +6,7 @@ WORKDIR /mono-repo
 
 COPY . .
 
-WORKDIR /mono-repo/apps/api
+WORKDIR /uniprep/apps/api
 
 RUN npm ci
 
