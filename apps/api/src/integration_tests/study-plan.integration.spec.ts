@@ -9,7 +9,6 @@ describe('StudyPlan Service Integration (DB Logic)', () => {
   let service: StudyPlanService;
   let prisma: PrismaService;
 
-  // Shared Test Data IDs
   let userA_Id: string;
   let userB_Id: string;
   let subjectA_Id: string;
@@ -19,22 +18,22 @@ describe('StudyPlan Service Integration (DB Logic)', () => {
 
   beforeAll(async () => {
     moduleRef = await Test.createTestingModule({
-      imports: [PrismaModule], // Use Real DB connection
+      imports: [PrismaModule],
       providers: [StudyPlanService],
     }).compile();
 
     service = moduleRef.get<StudyPlanService>(StudyPlanService);
     prisma = moduleRef.get<PrismaService>(PrismaService);
 
-    // 1. CLEAN DB
     await prisma.planTopic.deleteMany();
     await prisma.studyPlan.deleteMany();
+    await prisma.notification.deleteMany();
+    await prisma.answer.deleteMany();
+    await prisma.flashcard.deleteMany();
     await prisma.topic.deleteMany();
     await prisma.subject.deleteMany();
     await prisma.user.deleteMany();
 
-    // 2. SEED DATA
-    // Create Users
     const userA = await prisma.user.create({
       data: { email: 'userA@test.com', password: 'pw' },
     });
@@ -44,13 +43,11 @@ describe('StudyPlan Service Integration (DB Logic)', () => {
     });
     userB_Id = userB.id;
 
-    // Create Subjects
     const subA = await prisma.subject.create({ data: { name: 'Math' } });
     subjectA_Id = subA.id;
     const subB = await prisma.subject.create({ data: { name: 'History' } });
     subjectB_Id = subB.id;
 
-    // Create Topics (Topic A belongs to Math, Topic B belongs to History)
     const topA = await prisma.topic.create({
       data: { name: 'Algebra', subject_id: subjectA_Id },
     });
@@ -62,9 +59,11 @@ describe('StudyPlan Service Integration (DB Logic)', () => {
   });
 
   afterAll(async () => {
-    // Cleanup
     await prisma.planTopic.deleteMany();
     await prisma.studyPlan.deleteMany();
+    await prisma.notification.deleteMany();
+    await prisma.answer.deleteMany();
+    await prisma.flashcard.deleteMany();
     await prisma.topic.deleteMany();
     await prisma.subject.deleteMany();
     await prisma.user.deleteMany();
@@ -73,13 +72,11 @@ describe('StudyPlan Service Integration (DB Logic)', () => {
 
   describe('createPlan (Validation & Logic)', () => {
     it('should BLOCK creating a plan if the topic does not belong to the subject', async () => {
-      // Logic Check: Try to add "History Topic" to "Math Subject" Plan
       const invalidDto = {
-        subjectId: subjectA_Id, // Math
-        topics: [{ topicId: topicB_Id }], // History Topic
+        subjectId: subjectA_Id,
+        topics: [{ topicId: topicB_Id }],
       };
 
-      // Expect the service to catch this mismatch via DB query
       await expect(service.createPlan(userA_Id, invalidDto)).rejects.toThrow(
         BadRequestException,
       );
@@ -99,25 +96,21 @@ describe('StudyPlan Service Integration (DB Logic)', () => {
     });
 
     it('should UPDATE existing plan instead of creating duplicate if called twice', async () => {
-      // Logic Check: Idempotency
       const dto = {
         subjectId: subjectA_Id,
         topics: [{ topicId: topicA_Id }],
       };
 
-      // First Call (Already done in previous test, but we run it again to be sure)
       await service.createPlan(userA_Id, dto);
 
-      // Second Call
       const result = await service.createPlan(userA_Id, dto);
 
-      // Verify DB count
       const count = await prisma.studyPlan.count({
         where: { user_id: userA_Id, subject_id: subjectA_Id },
       });
 
-      expect(count).toBe(1); // Should still be 1, not 2
-      expect(result.id).toBeDefined(); // Should return the updated record
+      expect(count).toBe(1);
+      expect(result.id).toBeDefined();
     });
   });
 
@@ -125,7 +118,6 @@ describe('StudyPlan Service Integration (DB Logic)', () => {
     let planTopicId: string;
 
     beforeAll(async () => {
-      // Setup: Ensure User A has a plan with a topic
       const plan = await service.getPlanBySubject(userA_Id, subjectA_Id);
       planTopicId = plan.PlanTopics[0].id;
     });
@@ -140,7 +132,6 @@ describe('StudyPlan Service Integration (DB Logic)', () => {
     });
 
     it('should FORBID another user from updating the status', async () => {
-      // User B tries to update User A's topic
       await expect(
         service.updateTopicStatus(userB_Id, planTopicId, 'COMPLETED' as any),
       ).rejects.toThrow(ForbiddenException);
