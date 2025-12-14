@@ -78,10 +78,10 @@ To start app write this in your cli:
 ### First, clone this project
 
 ```
-git clone https://github.com/namanica/uniprep
+git clone https://github.com/tvm-trio/uniprep.git
 ```
 
-### Move to project folder
+### Move to the project folder
 
 ```
 cd uniprep
@@ -93,7 +93,29 @@ cd uniprep
 npm install
 ```
 
-### Run project
+### Run project (backend)
+
+1. move to the api folder from the project root
+
+```
+cd apps/api
+```
+
+2. generate prisma client
+
+```
+npx prisma generate
+```
+
+3. setup .env credentials
+
+4. run the backend development server
+
+```
+npm run dev
+```
+
+### Run project (both frontend and backend)
 
 ```
 npm run dev
