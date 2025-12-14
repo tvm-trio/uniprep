@@ -1,3 +1,11 @@
+jest.mock('nodemailer-express-handlebars', () => {
+  return () => {
+    return function (_mail, callback) {
+      if (callback) callback();
+    };
+  };
+});
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from '../auth.service';
 import { PrismaService } from '@common/prisma';
