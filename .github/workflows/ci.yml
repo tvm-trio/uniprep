@@ -22,6 +22,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Generate Prisma Client
+        run: npx prisma generate --schema=apps/api/prisma/schema.prisma
+
+      - name: Push Schema to Xata Test Branch
+        run: npx prisma db push --schema=apps/api/prisma/schema.prisma
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_TEST }}
+          XATA_API_KEY: ${{ secrets.XATA_API_KEY }}
+          XATA_BRANCH: "db-copy"
+
       - name: Lint
         run: npm run lint
 
@@ -35,7 +45,16 @@ jobs:
         run: npm run build
 
       - name: Run API tests
-        run: npm --workspace api test
+        run: npm --workspace api test -- --runInBand
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_TEST }}
+          XATA_API_KEY: ${{ secrets.XATA_API_KEY }}
+          XATA_BRANCH: "test"
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          JWT_EXPIRES_IN: "15m"
+          JWT_REFRESH_EXPIRES_IN: "15d"
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_PASS: ${{ secrets.GMAIL_PASS }}
 
       - name: Commitlint
         uses: wagoid/commitlint-github-action@v6
