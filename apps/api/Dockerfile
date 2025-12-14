@@ -5,11 +5,12 @@ RUN apk add --no-cache python3 make g++
 WORKDIR /app
 COPY . .
 
-RUN npm pkg delete devDependencies["@repo/eslint-config"]
-RUN npm pkg delete devDependencies["@repo/typescript-config"]
+RUN npm install
 
-RUN npm install --omit=dev
 RUN npm run build
+
+RUN npm prune --omit=dev
+
 
 FROM node:20-alpine
 
