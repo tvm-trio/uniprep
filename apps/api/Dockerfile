@@ -2,23 +2,21 @@ FROM node:20-alpine AS builder
 
 RUN apk add --no-cache python3 make g++
 
-WORKDIR /uniprep
+WORKDIR /mono-repo
+
 COPY . .
 
-ARG NODE_APP_DIR=apps/api
-RUN npm ci -w $NODE_APP_DIR
+WORKDIR /mono-repo/apps/api
 
-RUN npm run build -w $NODE_APP_DIR
+RUN npm ci
 
-RUN mkdir /app \
-    && cp -R $NODE_APP_DIR /app \
-    && cd /app \
-    && npm prune --production
+RUN npm run build
 
 FROM node:20-alpine
 
 WORKDIR /app
-COPY --from=builder /app /app
+
+COPY --from=builder /mono-repo/apps/api /app
 
 EXPOSE 8000
 
