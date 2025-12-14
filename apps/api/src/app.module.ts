@@ -9,6 +9,7 @@ import { NotificationModule } from './notification/notification.module';
 import { ProgressTrackerModule } from './progress_tracker/progress_tracker.module';
 import { DbFillModule } from './db_fill/db_fill.module';
 import { StudyPlanModule } from './study-plan/study-plan.module';
+import { FlashcardsModule } from './flashcards/flashcards.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { StudyPlanModule } from './study-plan/study-plan.module';
     ProgressTrackerModule,
     DbFillModule,
     StudyPlanModule,
+    FlashcardsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
