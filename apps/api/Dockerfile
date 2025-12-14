@@ -8,7 +8,7 @@ COPY . .
 
 WORKDIR /uniprep/apps/api
 
-RUN npm ci
+RUN npm install
 
 RUN npm run build
 
