@@ -14,14 +14,11 @@ import { analiseAnswers, supportMsg, TopicObj } from './gpt_settings/gptReqFunc'
 export class StudyPlanService {
   constructor(private readonly prisma: PrismaService) { }
 
-  // Creates OR Updates a Study Plan
   async createPlan(params: InfoForPlan) {
     const { userId, subjectId, results } = params;
 
-    // 1. Кількість завдань
     const taskNum = results.length;
 
-    // 2. Беремо відповіді з БД по answerId
     const answers = await this.prisma.answer.findMany({
       where: {
         id: { in: results.map(r => r.answerId) },
@@ -33,13 +30,10 @@ export class StudyPlanService {
       },
     });
 
-    // 3. Неправильні відповіді
     const wrongAnswers = answers.filter(a => !a.isCorrect);
 
-    // 4. Кількість правильних
     const correctTaskNum = taskNum - wrongAnswers.length;
 
-    // 5. Теми з неправильних відповідей
     const wrongTopicsMap = new Map<string, TopicObj>();
 
     for (const answer of wrongAnswers) {
@@ -54,7 +48,6 @@ export class StudyPlanService {
 
     const wrongTopics = Array.from(wrongTopicsMap.values());
 
-    // 6. Повідомлення підтримки
     const supportResponse: any = await supportMsg({
       taskNum,
       correctTaskNum,
@@ -64,7 +57,6 @@ export class StudyPlanService {
 
     const message = supportResponseParsed.message
 
-    // 7. Аналіз тем
     let analysedTopics = wrongTopics;
 
     if (wrongTopics.length > 0) {
@@ -82,7 +74,6 @@ export class StudyPlanService {
       }
     }
 
-    // 8. Результат endpoint
     return {
       message,
       topics: analysedTopics,
