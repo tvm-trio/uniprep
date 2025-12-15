@@ -3,12 +3,8 @@ import { FlashcardsController } from '../flashcards.controller';
 import { FlashcardsService } from '../flashcards.service';
 import { DEFAULT_CARDS_TAKE, ENTRY_TEST_CARDS_NUMBER } from '../constants';
 import {
-  mockCorrectAnswerBody,
-  mockFlashcards,
-  mockIncorrectAnswerBody,
-  mockSubjectId,
-  mockTopicId,
-  mockUpdatedFlashcard,
+  mockFlashcard,
+  mockUserFlashcardProgress,
 } from './mocks';
 
 describe('FlashcardsController', () => {
@@ -42,81 +38,82 @@ describe('FlashcardsController', () => {
   });
 
   describe('getFlashcardsByTopic', () => {
-    it('should call service with correct parameters and default values', () => {
-      mockFlashcardsService.getFlashcardsByTopic.mockReturnValue(
-        mockFlashcards,
+    it('should return flashcards for a given topic', async () => {
+      const topicId = 'topic-1';
+      const expectedResult = [mockFlashcard];
+      mockFlashcardsService.getFlashcardsByTopic.mockResolvedValue(
+        expectedResult,
       );
 
-      const result = controller.getFlashcardsByTopic(mockTopicId);
+      const result = await controller.getFlashcardsByTopic(topicId);
 
+      expect(result).toEqual(expectedResult);
       expect(service.getFlashcardsByTopic).toHaveBeenCalledWith(
-        mockTopicId,
+        topicId,
         0,
         DEFAULT_CARDS_TAKE,
       );
-      expect(result).toEqual(mockFlashcards);
     });
 
-    it('should call service with custom skip and take values', () => {
+    it('should accept custom skip and take parameters', async () => {
+      const topicId = 'topic-1';
       const skip = 10;
-      const take = 20;
+      const take = 5;
+      mockFlashcardsService.getFlashcardsByTopic.mockResolvedValue([]);
 
-      mockFlashcardsService.getFlashcardsByTopic.mockReturnValue(
-        mockFlashcards,
-      );
-
-      const result = controller.getFlashcardsByTopic(mockTopicId, skip, take);
+      await controller.getFlashcardsByTopic(topicId, skip, take);
 
       expect(service.getFlashcardsByTopic).toHaveBeenCalledWith(
-        mockTopicId,
+        topicId,
         skip,
         take,
       );
-      expect(result).toEqual(mockFlashcards);
     });
   });
 
   describe('getEntryTestFlashcards', () => {
-    it('should call service without mockSubjectId when not provided', async () => {
+    it('should return entry test flashcards without subject filter', async () => {
+      const expectedResult = [mockFlashcard];
       mockFlashcardsService.getEntryTestFlashcards.mockResolvedValue(
-        mockFlashcards,
+        expectedResult,
       );
 
       const result = await controller.getEntryTestFlashcards();
 
+      expect(result).toEqual(expectedResult);
       expect(service.getEntryTestFlashcards).toHaveBeenCalledWith(
         undefined,
         0,
         ENTRY_TEST_CARDS_NUMBER,
       );
-      expect(result).toEqual(mockFlashcards);
     });
 
-    it('should call service with mockSubjectId when provided', async () => {
+    it('should return entry test flashcards filtered by subject', async () => {
+      const subjectId = 'subject-1';
+      const expectedResult = [mockFlashcard];
       mockFlashcardsService.getEntryTestFlashcards.mockResolvedValue(
-        mockFlashcards,
+        expectedResult,
       );
 
-      const result = await controller.getEntryTestFlashcards(mockSubjectId);
+      const result = await controller.getEntryTestFlashcards(subjectId);
 
+      expect(result).toEqual(expectedResult);
       expect(service.getEntryTestFlashcards).toHaveBeenCalledWith(
-        mockSubjectId,
+        subjectId,
         0,
         ENTRY_TEST_CARDS_NUMBER,
       );
-      expect(result).toEqual(mockFlashcards);
     });
 
-    it('should call service with custom skip and take values', async () => {
+    it('should accept custom skip and take parameters', async () => {
       const skip = 5;
-      const take = 15;
-
+      const take = 10;
       mockFlashcardsService.getEntryTestFlashcards.mockResolvedValue([]);
 
-      await controller.getEntryTestFlashcards(mockSubjectId, skip, take);
+      await controller.getEntryTestFlashcards(undefined, skip, take);
 
       expect(service.getEntryTestFlashcards).toHaveBeenCalledWith(
-        mockSubjectId,
+        undefined,
         skip,
         take,
       );
@@ -124,67 +121,73 @@ describe('FlashcardsController', () => {
   });
 
   describe('submitAnswer', () => {
-    it('should call service with correct body', () => {
-      mockFlashcardsService.submitAnswer.mockReturnValue(mockUpdatedFlashcard);
-
-      const result = controller.submitAnswer(mockCorrectAnswerBody);
-
-      expect(service.submitAnswer).toHaveBeenCalledWith(mockCorrectAnswerBody);
-      expect(result).toEqual(mockUpdatedFlashcard);
-    });
-
-    it('should handle incorrect answer', () => {
-      mockFlashcardsService.submitAnswer.mockReturnValue({});
-
-      void controller.submitAnswer(mockIncorrectAnswerBody);
-
-      expect(service.submitAnswer).toHaveBeenCalledWith(
-        mockIncorrectAnswerBody,
+    it('should submit an answer and return user progress', async () => {
+      const req = { user: { sub: 'user-1' } };
+      const body = {
+        flashcardId: 'flashcard-1',
+        isCorrect: true,
+        timeSpent: 30,
+      };
+      mockFlashcardsService.submitAnswer.mockResolvedValue(
+        mockUserFlashcardProgress,
       );
+
+      const result = await controller.submitAnswer(req, body);
+
+      expect(result).toEqual(mockUserFlashcardProgress);
+      expect(service.submitAnswer).toHaveBeenCalledWith(body, 'user-1');
     });
   });
 
   describe('getFlashcardsToRepeat', () => {
-    it('should call service without mockTopicId when not provided', async () => {
+    it('should return flashcards to repeat without topic filter', async () => {
+      const req = { user: { sub: 'user-1' } };
+      const expectedResult = [mockFlashcard];
       mockFlashcardsService.getFlashcardsToRepeat.mockResolvedValue(
-        mockFlashcards,
+        expectedResult,
       );
 
-      const result = await controller.getFlashcardsToRepeat();
+      const result = await controller.getFlashcardsToRepeat(req);
 
+      expect(result).toEqual(expectedResult);
       expect(service.getFlashcardsToRepeat).toHaveBeenCalledWith(
+        'user-1',
         undefined,
         0,
         DEFAULT_CARDS_TAKE,
       );
-      expect(result).toEqual(mockFlashcards);
     });
 
-    it('should call service with mockTopicId when provided', async () => {
+    it('should return flashcards to repeat filtered by topic', async () => {
+      const req = { user: { sub: 'user-1' } };
+      const topicId = 'topic-1';
+      const expectedResult = [mockFlashcard];
       mockFlashcardsService.getFlashcardsToRepeat.mockResolvedValue(
-        mockFlashcards,
+        expectedResult,
       );
 
-      const result = await controller.getFlashcardsToRepeat(mockTopicId);
+      const result = await controller.getFlashcardsToRepeat(req, topicId);
 
+      expect(result).toEqual(expectedResult);
       expect(service.getFlashcardsToRepeat).toHaveBeenCalledWith(
-        mockTopicId,
+        'user-1',
+        topicId,
         0,
         DEFAULT_CARDS_TAKE,
       );
-      expect(result).toEqual(mockFlashcards);
     });
 
-    it('should call service with custom skip and take values', async () => {
+    it('should accept custom skip and take parameters', async () => {
+      const req = { user: { sub: 'user-1' } };
       const skip = 10;
-      const take = 30;
-
+      const take = 20;
       mockFlashcardsService.getFlashcardsToRepeat.mockResolvedValue([]);
 
-      await controller.getFlashcardsToRepeat(mockTopicId, skip, take);
+      await controller.getFlashcardsToRepeat(req, undefined, skip, take);
 
       expect(service.getFlashcardsToRepeat).toHaveBeenCalledWith(
-        mockTopicId,
+        'user-1',
+        undefined,
         skip,
         take,
       );
