@@ -13,11 +13,13 @@ export const mockFlashcards = Array.from({ length: 50 }, (_, i) => ({
 export const mockCorrectAnswerBody: SubmitAnswerBody = {
   flashcardId: 'flashcard-123',
   isCorrect: true,
+  timeSpent: 5,
 };
 
 export const mockIncorrectAnswerBody: SubmitAnswerBody = {
   flashcardId: 'flashcard-123',
   isCorrect: false,
+  timeSpent: 5,
 };
 
 export const mockUpdatedFlashcard = {

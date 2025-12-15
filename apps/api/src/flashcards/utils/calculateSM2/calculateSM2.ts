@@ -18,7 +18,7 @@
 // and subsequent intervals are calculated by multiplying the previous interval
 // by the updated EF, rounded up.
 
-import { Flashcard } from '@prisma/client';
+import { UserFlashcardProgress } from '@prisma/client';
 import {
   DAY_IN_HOURS,
   HOUR_IN_MINUTES,
@@ -31,10 +31,10 @@ import {
 import { ReturnType } from './types';
 
 export const calculateSM2 = (
-  flashcard: Flashcard,
+  flashcardProgress: UserFlashcardProgress,
   isCorrect: boolean,
 ): ReturnType => {
-  const { interval, repetition, ef } = flashcard;
+  const { interval, repetition, ef } = flashcardProgress;
 
   const q = isCorrect ? SM2_CORRECT_QUALITY : SM2_INCORRECT_QUALITY;
 
