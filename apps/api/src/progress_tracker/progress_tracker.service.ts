@@ -1,7 +1,8 @@
-import { Body, Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
-import * as interfaces from './interfaces';
 import { Metrix } from './interfaces';
+import { MetrixBodyType } from './types';
+import { ERROR_MESSAGES } from '@common/constants';
 
 @Injectable()
 export class ProgressTrackerService {
@@ -9,64 +10,71 @@ export class ProgressTrackerService {
 
   async getMetrix() {
     const metrics = await this.prisma.progress.findMany();
-    return {
-      message: 'Here are your metrics',
-      data: metrics,
-    };
+    return metrics;
   }
 
-  async getMetrixById(@Body() body: { id: string }) {
+  async getMetrixById(userId: string, subjectId: string) {
     const metric = await this.prisma.progress.findUnique({
-      where: { id: body.id },
+      where: {
+        user_id_subject_id: {
+          user_id: userId,
+          subject_id: subjectId,
+        },
+      },
     });
 
-    return {
-      message: `Metric with id ${body.id}`,
-      data: metric,
-    };
+    return metric;
   }
 
-  async addMetrix(@Body() body: interfaces.Metrix) {
+  async addMetrix(userId: string, body: MetrixBodyType) {
+    const metricExists = await this.prisma.progress.findUnique({
+      where: {
+        user_id_subject_id: { user_id: userId, subject_id: body.subject_id },
+      },
+    });
+
+    if (metricExists) {
+      throw new ForbiddenException(ERROR_MESSAGES.METRIC_ALREADY_EXISTS);
+    }
+
     const newMetric = await this.prisma.progress.create({
-      data: {
-        user_id: body.user_id,
-        completed_topics: body.completed_topics,
-        accuracy_rate: body.accuracy_rate,
-        time_spent: body.time_spent,
-        updated_at: body.updated_at,
-      },
+      data: { user_id: userId, ...body },
     });
 
-    return {
-      message: 'Metric added successfully',
-      data: newMetric,
-    };
+    return newMetric;
   }
 
-  async updateMetrix(@Body() body: Partial<Metrix> & { id: string }) {
-    const updatedMetric = await this.prisma.progress.update({
-      where: { id: body.id },
-      data: {
-        user_id: body.user_id,
-        completed_topics: body.completed_topics,
-        accuracy_rate: body.accuracy_rate,
-        time_spent: body.time_spent,
+  async updateMetrix(
+    userId: string,
+    subjectId: string,
+    body: Omit<Metrix, 'id' | 'updated_at' | 'user_id' | 'subject_id'>,
+  ) {
+    const updatedMetric = await this.prisma.progress.upsert({
+      where: {
+        user_id_subject_id: {
+          user_id: userId,
+          subject_id: subjectId,
+        },
       },
+      update: { user_id: userId, subject_id: subjectId, ...body },
+      create: { user_id: userId, subject_id: subjectId, ...body },
     });
 
-    return {
-      message: `Metric with id ${body.id} updated`,
-      data: updatedMetric,
-    };
+    return updatedMetric;
   }
 
-  async deleteMetrix(@Body() body: { id: string }) {
+  async deleteMetrix(userId: string, subjectId: string) {
     const deleted = await this.prisma.progress.delete({
-      where: { id: body.id },
+      where: {
+        user_id_subject_id: {
+          user_id: userId,
+          subject_id: subjectId,
+        },
+      },
     });
 
     return {
-      message: `Metric with id ${body.id} deleted`,
+      message: `Metric with subjectId ${subjectId} was deleted`,
       data: deleted,
     };
   }
