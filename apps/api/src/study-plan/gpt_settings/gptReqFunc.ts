@@ -1,0 +1,84 @@
+import OpenAI from "openai";
+import { text } from "stream/consumers";
+
+const client = new OpenAI({
+    apiKey: process.env.GPT_API_KEY,
+});
+
+export interface TopicObj {
+    topicId: string;
+    topic: string;
+}
+
+export interface Param {
+    taskNum: number;
+    correctTaskNum: number;
+}
+
+export async function supportMsg(params: Param) {
+    const { taskNum, correctTaskNum } = params;
+
+    return await client.responses.create({
+        model: "gpt-5-nano",
+        instructions:
+            "Generate a short motivational message for a student based on test results.",
+        input: `Total tasks: ${taskNum}, correct answers: ${correctTaskNum}`,
+
+        text: {
+            format: {
+                name: "support_message",
+                type: "json_schema",
+                schema: {
+                    type: "object",
+                    properties: {
+                        message: { type: "string" }
+                    },
+                    required: ["message"],
+                    additionalProperties: false
+                }
+            }
+        }
+    } as any);
+}
+
+
+
+export async function analiseAnswers(topics: TopicObj[]) {
+    return await client.responses.create({
+        model: "gpt-5-nano",
+        instructions: "Sort topics by chronology",
+        input: JSON.stringify(topics),
+
+        text: {
+            format: {
+                name: "sorted_topics",
+                type: "json_schema",
+                schema: {
+                    type: "object",
+                    properties: {
+                        topics: {
+                            type: "array",
+                            items: {
+                                type: "object",
+                                properties: {
+                                    topicId: { type: "string" },
+                                    topic: { type: "string" }
+                                },
+                                required: ["topicId", "topic"],
+                                additionalProperties: false
+                            }
+                        }
+                    },
+                    required: ["topics"],
+                    additionalProperties: false
+                }
+            }
+        },
+
+    } as any);
+}
+
+
+
+
+

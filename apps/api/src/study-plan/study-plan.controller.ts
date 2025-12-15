@@ -11,26 +11,16 @@ import {
 import { StudyPlanService } from './study-plan.service';
 import { CreateStudyPlanDto } from './dto/create-study-plan.dto';
 import { UpdateTopicStatusDto } from './dto/update-topic-status.dto';
+import { Result } from './interface/userPlan';
 
 @Controller('study-plans')
 export class StudyPlanController {
-  constructor(private readonly studyPlanService: StudyPlanService) {}
+  constructor(private readonly studyPlanService: StudyPlanService) { }
 
   //Used by the AI Service (or internal logic) to save a newly generated plan.
-  @Post()
-  async createStudyPlan(
-    @Body() createStudyPlanDto: CreateStudyPlanDto,
-    @Req() req,
-  ) {
-    const userId = req.user.sub;
-    const plan = await this.studyPlanService.createPlan(
-      userId,
-      createStudyPlanDto,
-    );
-    return {
-      message: 'Study plan successfully processed.',
-      data: plan,
-    };
+  @Post("generate-study-plan")
+  async createStudyPlan(@Body() body: { userId: string, subjectId: string, results: Result[] }) {
+    return this.studyPlanService.createPlan(body)
   }
 
   // Get aLL study plans for the user
