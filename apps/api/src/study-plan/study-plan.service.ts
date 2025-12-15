@@ -58,12 +58,10 @@ export class StudyPlanService {
     const message = supportResponseParsed.message
 
     let analysedTopics = wrongTopics;
-
     if (wrongTopics.length > 0) {
       const analyseResponse: any = await analiseAnswers(wrongTopics);
       const text =
-        analyseResponse.output_text ??
-        analyseResponse.output?.[0]?.content?.[0]?.text;
+        analyseResponse.output_text.ids;
 
       if (text) {
         try {
@@ -72,11 +70,26 @@ export class StudyPlanService {
           analysedTopics = wrongTopics;
         }
       }
+
     }
+
+    const studyPlan: string[] = []
+    analysedTopics.forEach(elem => {
+      studyPlan.push(elem.topicId)
+    })
+
+
+    await this.prisma.studyPlan.create({
+      data: {
+        user_id: userId,
+        subject_id: subjectId,
+        topic_ids: studyPlan
+      }
+    })
 
     return {
       message,
-      topics: analysedTopics,
+      topics: studyPlan,
     };
   }
 

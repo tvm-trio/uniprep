@@ -131,7 +131,7 @@ export class DbFillService {
   async deleteEmptyFlashcards() {
     const deleted = await this.prisma.flashcard.deleteMany({
       where: {
-        Answers: {
+        answers: {
           none: {}
         }
       }

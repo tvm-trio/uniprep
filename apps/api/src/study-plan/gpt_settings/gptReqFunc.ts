@@ -1,5 +1,4 @@
 import OpenAI from "openai";
-import { text } from "stream/consumers";
 
 const client = new OpenAI({
     apiKey: process.env.GPT_API_KEY,
@@ -56,29 +55,17 @@ export async function analiseAnswers(topics: TopicObj[]) {
                 schema: {
                     type: "object",
                     properties: {
-                        topics: {
+                        ids: {
                             type: "array",
-                            items: {
-                                type: "object",
-                                properties: {
-                                    topicId: { type: "string" },
-                                    topic: { type: "string" }
-                                },
-                                required: ["topicId", "topic"],
-                                additionalProperties: false
-                            }
+                            items: { type: "string" }
                         }
                     },
-                    required: ["topics"],
+                    required: ["ids"],
                     additionalProperties: false
                 }
+
             }
         },
 
     } as any);
 }
-
-
-
-
-

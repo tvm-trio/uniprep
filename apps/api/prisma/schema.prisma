@@ -81,6 +81,7 @@ model StudyPlan {
   id             String      @id @default(uuid()) @db.Uuid
   user_id        String      @db.Uuid
   subject_id     String      @db.Uuid
+  topic_ids      String[]    @db.Uuid
   xata_createdat DateTime    @default(now()) @db.Timestamptz(6)
   xata_updatedat DateTime    @default(now()) @updatedAt @db.Timestamptz(6)
   xata_id        String      @unique @default(dbgenerated("('rec_'::text || (xata_private.xid())::text)"))
