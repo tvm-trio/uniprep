@@ -1,9 +1,9 @@
-import { Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, Delete } from '@nestjs/common';
 import { DbFillService } from './db_fill.service';
 
 @Controller('db-fill')
 export class DbFillController {
-  constructor(private dbFillService: DbFillService) {}
+  constructor(private dbFillService: DbFillService) { }
 
   @Get('all-topic')
   async findAll() {
@@ -24,4 +24,20 @@ export class DbFillController {
   async answersNum() {
     return await this.dbFillService.answersInfo();
   }
+
+  @Post('subject')
+  async insertSub(@Body() body: { subject: string }) {
+    return await this.dbFillService.insertSub(body.subject);
+  }
+
+  @Delete('delete-empty-topics')
+  async deleteEmptyTopics() {
+    return await this.dbFillService.deleteEmptyTopics();
+  }
+
+  @Delete('delete-empty-flashcards')
+  async deleteEmptyFlashcards() {
+    return await this.dbFillService.deleteEmptyFlashcards();
+  }
+
 }
