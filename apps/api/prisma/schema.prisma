@@ -48,7 +48,6 @@ model Progress {
   xata_version     Int      @default(0)
   xata_createdat   DateTime @default(now()) @db.Timestamptz(6)
   xata_updatedat   DateTime @default(now()) @updatedAt @db.Timestamptz(6)
-  subject_id       String   @db.Uuid
   Subject          Subject  @relation(fields: [subject_id], references: [id])
   User             User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
