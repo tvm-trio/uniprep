@@ -79,13 +79,13 @@ export class StudyPlanService {
     })
 
 
-    await this.prisma.studyPlan.create({
-      data: {
-        user_id: userId,
-        subject_id: subjectId,
-        topic_ids: studyPlan
-      }
-    })
+    // await this.prisma.studyPlan.create({
+    //   data: {
+    //     user_id: userId,
+    //     subject_id: subjectId,
+    //     topic_ids: studyPlan
+    //   }
+    // })
 
     return {
       message,
