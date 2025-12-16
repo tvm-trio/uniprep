@@ -25,7 +25,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { AppModule } from '../app.module';
 import { PrismaService } from '../common/prisma';
 
-describe('StudyPlan (e2e)', () => {
+describe('EntryTest - StudyPlan Flow (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
 
@@ -33,8 +33,6 @@ describe('StudyPlan (e2e)', () => {
   let testUserId: string;
   let testSubjectId: string;
   let testTopicId: string;
-  let testFlashcardId: string;
-  let testWrongAnswerId: string;
 
   beforeAll(async () => {
     const moduleFixture = await Test.createTestingModule({
@@ -68,7 +66,7 @@ describe('StudyPlan (e2e)', () => {
     });
     testTopicId = topic.id;
 
-    const flashcard = await prisma.flashcard.create({
+    await prisma.flashcard.create({
       data: {
         question: 'E2E Question?',
         topic_id: testTopicId,
@@ -81,8 +79,6 @@ describe('StudyPlan (e2e)', () => {
       },
       include: { answers: true },
     });
-    testFlashcardId = flashcard.id;
-    testWrongAnswerId = flashcard.answers.find((a) => !a.isCorrect).id;
 
     const authResponse = await request(app.getHttpServer())
       .post('/auth/sign-up')
@@ -111,28 +107,42 @@ describe('StudyPlan (e2e)', () => {
     await app.close();
   });
 
-  it('POST /study-plans/generate-study-plan should analyze results and create plan', async () => {
-    const payload = {
+  it('should complete full flow: Take Entry Test -> Generate Plan -> Fetch Plan', async () => {
+    const entryTestResponse = await request(app.getHttpServer())
+      .get(`/flashcards/entry-test?subjectId=${testSubjectId}`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+
+    expect(Array.isArray(entryTestResponse.body)).toBe(true);
+    expect(entryTestResponse.body.length).toBeGreaterThan(0);
+
+    const receivedFlashcard = entryTestResponse.body[0];
+    expect(receivedFlashcard.question).toBe('E2E Question?');
+    expect(receivedFlashcard.answers.length).toBeGreaterThan(0);
+
+    const wrongAnswer = receivedFlashcard.answers.find((a) => !a.isCorrect);
+    expect(wrongAnswer).toBeDefined();
+
+    const generatePayload = {
       userId: testUserId,
       subjectId: testSubjectId,
       results: [
         {
-          topicId: testTopicId,
-          flashcardId: testFlashcardId,
-          answerId: testWrongAnswerId,
+          topicId: receivedFlashcard.topic_id,
+          flashcardId: receivedFlashcard.id,
+          answerId: wrongAnswer.id,
         },
       ],
     };
 
-    const response = await request(app.getHttpServer())
+    const generateResponse = await request(app.getHttpServer())
       .post('/study-plans/generate-study-plan')
       .set('Authorization', `Bearer ${accessToken}`)
-      .send(payload)
+      .send(generatePayload)
       .expect(201);
 
-    expect(response.body.message).toBe('E2E AI Motivation');
-    expect(response.body.topics).toBeInstanceOf(Array);
-    expect(response.body.topics).toContainEqual(
+    expect(generateResponse.body.message).toBe('E2E AI Motivation');
+    expect(generateResponse.body.topics).toContainEqual(
       expect.objectContaining({ topicId: testTopicId }),
     );
 
@@ -144,16 +154,13 @@ describe('StudyPlan (e2e)', () => {
     expect(savedPlan).toBeDefined();
     expect(savedPlan.PlanTopics.length).toBe(1);
     expect(savedPlan.PlanTopics[0].topic_id).toBe(testTopicId);
-  });
 
-  it('GET /study-plans/subject/:subjectId should return the generated plan', async () => {
-    const response = await request(app.getHttpServer())
+    const fetchPlanResponse = await request(app.getHttpServer())
       .get(`/study-plans/subject/${testSubjectId}`)
       .set('Authorization', `Bearer ${accessToken}`)
       .expect(200);
 
-    expect(response.body.subject_id).toBe(testSubjectId);
-    expect(response.body.PlanTopics.length).toBeGreaterThan(0);
-    expect(response.body.PlanTopics[0].name).toBe('E2E Topic');
+    expect(fetchPlanResponse.body.subject_id).toBe(testSubjectId);
+    expect(fetchPlanResponse.body.PlanTopics[0].name).toBe('E2E Topic');
   });
 });
