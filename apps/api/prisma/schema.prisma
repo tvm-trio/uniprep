@@ -8,18 +8,19 @@ datasource db {
 }
 
 model User {
-  id             String         @id @default(uuid()) @db.Uuid
-  email          String         @unique
-  password       String
-  created_at     DateTime       @default(now())
-  xata_createdat DateTime       @default(now()) @db.Timestamptz(6)
-  xata_updatedat DateTime       @default(now()) @updatedAt @db.Timestamptz(6)
-  xata_id        String         @unique @default(dbgenerated("('rec_'::text || (xata_private.xid())::text)"))
-  xata_version   Int            @default(0)
-  refresh_token  String?
-  Notification   Notification[]
-  Progress       Progress[]
-  StudyPlan      StudyPlan[]
+  id                    String                  @id @default(uuid()) @db.Uuid
+  email                 String                  @unique
+  password              String
+  created_at            DateTime                @default(now())
+  xata_createdat        DateTime                @default(now()) @db.Timestamptz(6)
+  xata_updatedat        DateTime                @default(now()) @updatedAt @db.Timestamptz(6)
+  xata_id               String                  @unique @default(dbgenerated("('rec_'::text || (xata_private.xid())::text)"))
+  xata_version          Int                     @default(0)
+  refresh_token         String?
+  Notification          Notification[]
+  Progress              Progress[]
+  StudyPlan             StudyPlan[]
+  UserFlashcardProgress UserFlashcardProgress[]
 }
 
 model Notification {
@@ -37,6 +38,7 @@ model Notification {
 model Progress {
   id               String   @id @default(dbgenerated("('rec_'::text || (xata_private.xid())::text)"))
   user_id          String   @db.Uuid
+  subject_id       String   @db.Uuid
   completed_topics Int
   accuracy_rate    Float
   time_spent       Int
@@ -46,7 +48,9 @@ model Progress {
   xata_createdat   DateTime @default(now()) @db.Timestamptz(6)
   xata_updatedat   DateTime @default(now()) @updatedAt @db.Timestamptz(6)
   User             User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  Subject          Subject  @relation(fields: [subject_id], references: [id])
 
+  @@unique([user_id, subject_id])
   @@index([user_id])
 }
 
@@ -59,6 +63,7 @@ model Subject {
   xata_version   Int         @default(0)
   StudyPlans     StudyPlan[]
   Topics         Topic[]
+  Progress       Progress[]
 }
 
 model Topic {
@@ -107,16 +112,36 @@ model Flashcard {
   xata_id        String   @unique @default(dbgenerated("('rec_'::text || (xata_private.xid())::text)"))
   xata_version   Int      @default(0)
 
-  id             String   @id @default(uuid()) @db.Uuid
-  topic_id       String   @db.Uuid
-  question       String
-  answers        Answer[]
+  id       String   @id @default(uuid()) @db.Uuid
+  topic_id String   @db.Uuid
+  question String
+  answers  Answer[]
+
+  Topic                 Topic                   @relation(fields: [topic_id], references: [id])
+  UserFlashcardProgress UserFlashcardProgress[]
+}
+
+model UserFlashcardProgress {
+  xata_createdat DateTime @default(now()) @db.Timestamptz(6)
+  xata_updatedat DateTime @default(now()) @db.Timestamptz(6)
+  xata_id        String   @unique @default(dbgenerated("('rec_'::text || (xata_private.xid())::text)"))
+  xata_version   Int      @default(0)
+
+  id           String   @id @default(uuid()) @db.Uuid
+  user_id      String   @db.Uuid
+  flashcard_id String   @db.Uuid
   interval     Int      @default(1)
   repetition   Int      @default(0)
   ef           Float    @default(2.5)
   nextReview   DateTime @default(now())
+  time_spent   Int
+  updated_at   DateTime @updatedAt
 
-  Topic          Topic    @relation(fields: [topic_id], references: [id])
+  User      User      @relation(fields: [user_id], references: [id])
+  Flashcard Flashcard @relation(fields: [flashcard_id], references: [id])
+
+  @@unique([user_id, flashcard_id])
+  @@index([user_id])
 }
 
 model Answer {

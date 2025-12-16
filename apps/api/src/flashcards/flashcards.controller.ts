@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, Req } from '@nestjs/common';
 import { FlashcardsService } from './flashcards.service';
 import { DEFAULT_CARDS_TAKE, ENTRY_TEST_CARDS_NUMBER } from './constants';
 import { type SubmitAnswerBody } from './interfaces';
@@ -26,16 +26,24 @@ export class FlashcardsController {
   }
 
   @Post('submit-answer')
-  submitAnswer(@Body() body: SubmitAnswerBody) {
-    return this.service.submitAnswer(body);
+  submitAnswer(@Req() req, @Body() body: SubmitAnswerBody) {
+    const userId = req.user.sub;
+    return this.service.submitAnswer(body, userId);
   }
 
   @Get('to-repeat')
   async getFlashcardsToRepeat(
+    @Req() req,
     @Query('topicId') topicId?: string,
     @Query('skip') skip: number = 0,
     @Query('take') take: number = DEFAULT_CARDS_TAKE,
   ) {
-    return await this.service.getFlashcardsToRepeat(topicId, skip, take);
+    const userId = req.user.sub;
+    return await this.service.getFlashcardsToRepeat(
+      userId,
+      topicId,
+      skip,
+      take,
+    );
   }
 }

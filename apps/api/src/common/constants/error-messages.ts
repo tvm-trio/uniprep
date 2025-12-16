@@ -4,4 +4,5 @@ export const ERROR_MESSAGES = {
   INVALID_PASSWORD: 'Invalid password',
   ACCESS_DENIED: 'Access denied',
   FLASHCARD_NOT_FOUND: 'Flashcard not found',
+  METRIC_ALREADY_EXISTS: 'Metric already exists',
 };

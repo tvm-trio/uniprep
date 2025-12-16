@@ -2,15 +2,17 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { FlashcardsService } from '../flashcards.service';
 import { PrismaService } from '@common/prisma';
-import { DEFAULT_CARDS_TAKE, ENTRY_TEST_CARDS_NUMBER } from '../constants';
-import { calculateSM2 } from '../utils';
+import { ProgressTrackerService } from '../../progress_tracker/progress_tracker.service';
 import { ERROR_MESSAGES } from '@common/constants';
+import { DEFAULT_CARDS_TAKE } from '../constants';
+import * as utils from '../utils';
 import {
-  mockCorrectAnswerBody,
-  mockFlashcards,
-  mockIncorrectAnswerBody,
-  mockSubjectId,
-  mockTopicId,
+  mockFlashcard,
+  mockFlashcardWithTopic,
+  mockUserFlashcardProgress,
+  mockProgressMetric,
+  mockPrismaService,
+  mockProgressTrackerService,
 } from './mocks';
 
 jest.mock('../utils');
@@ -18,14 +20,7 @@ jest.mock('../utils');
 describe('FlashcardsService', () => {
   let service: FlashcardsService;
   let prisma: PrismaService;
-
-  const mockPrismaService = {
-    flashcard: {
-      findMany: jest.fn(),
-      findUnique: jest.fn(),
-      update: jest.fn(),
-    },
-  };
+  let progressTracker: ProgressTrackerService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -35,11 +30,18 @@ describe('FlashcardsService', () => {
           provide: PrismaService,
           useValue: mockPrismaService,
         },
+        {
+          provide: ProgressTrackerService,
+          useValue: mockProgressTrackerService,
+        },
       ],
     }).compile();
 
     service = module.get<FlashcardsService>(FlashcardsService);
     prisma = module.get<PrismaService>(PrismaService);
+    progressTracker = module.get<ProgressTrackerService>(
+      ProgressTrackerService,
+    );
   });
 
   afterEach(() => {
@@ -47,256 +49,343 @@ describe('FlashcardsService', () => {
   });
 
   describe('getFlashcardsByTopic', () => {
-    it('should return flashcards for a given topic with default pagination', async () => {
-      mockPrismaService.flashcard.findMany.mockResolvedValue(mockFlashcards);
+    it('should return flashcards for a given topic', async () => {
+      const topicId = 'topic-1';
+      const expectedResult = [mockFlashcard];
+      mockPrismaService.flashcard.findMany.mockResolvedValue(expectedResult);
 
-      const result = await service.getFlashcardsByTopic(mockTopicId);
+      const result = await service.getFlashcardsByTopic(topicId);
 
+      expect(result).toEqual(expectedResult);
       expect(prisma.flashcard.findMany).toHaveBeenCalledWith({
-        where: { topic_id: mockTopicId },
+        where: { topic_id: topicId },
         include: { answers: true },
         skip: 0,
         take: DEFAULT_CARDS_TAKE,
       });
-      expect(result).toEqual(mockFlashcards);
     });
 
-    it('should return flashcards with custom skip and take values', async () => {
+    it('should apply pagination parameters', async () => {
+      const topicId = 'topic-1';
       const skip = 10;
-      const take = 20;
+      const take = 5;
+      mockPrismaService.flashcard.findMany.mockResolvedValue([]);
 
-      mockPrismaService.flashcard.findMany.mockResolvedValue(mockFlashcards);
-
-      const result = await service.getFlashcardsByTopic(
-        mockTopicId,
-        skip,
-        take,
-      );
+      await service.getFlashcardsByTopic(topicId, skip, take);
 
       expect(prisma.flashcard.findMany).toHaveBeenCalledWith({
-        where: { topic_id: mockTopicId },
+        where: { topic_id: topicId },
         include: { answers: true },
         skip,
         take,
       });
-      expect(result).toEqual(mockFlashcards);
     });
   });
 
   describe('getEntryTestFlashcards', () => {
     it('should return shuffled flashcards without subject filter', async () => {
-      mockPrismaService.flashcard.findMany.mockResolvedValue(mockFlashcards);
-
-      const mockMath = Object.create(global.Math);
-      mockMath.random = jest.fn(() => 0.5);
-      global.Math = mockMath;
+      const flashcards = [
+        mockFlashcard,
+        { ...mockFlashcard, id: 'flashcard-2' },
+      ];
+      mockPrismaService.flashcard.findMany.mockResolvedValue(flashcards);
 
       const result = await service.getEntryTestFlashcards();
 
+      expect(result).toHaveLength(2);
       expect(prisma.flashcard.findMany).toHaveBeenCalledWith({
         where: {},
         include: { answers: true },
       });
-      expect(result).toHaveLength(ENTRY_TEST_CARDS_NUMBER);
-      expect(Array.isArray(result)).toBe(true);
     });
 
-    it('should return all flashcards when less than ENTRY_TEST_CARDS_NUMBER available', async () => {
-      const shortenedFlashcards = mockFlashcards.slice(
-        0,
-        ENTRY_TEST_CARDS_NUMBER / 2,
-      );
+    it('should filter by subject when provided', async () => {
+      const subjectId = 'subject-1';
+      const flashcards = [mockFlashcard];
+      mockPrismaService.flashcard.findMany.mockResolvedValue(flashcards);
 
-      mockPrismaService.flashcard.findMany.mockResolvedValue(
-        shortenedFlashcards,
-      );
-
-      const result = await service.getEntryTestFlashcards();
-
-      expect(prisma.flashcard.findMany).toHaveBeenCalledWith({
-        where: {},
-        include: { answers: true },
-      });
-      expect(result).toHaveLength(shortenedFlashcards.length);
-      expect(Array.isArray(result)).toBe(true);
-    });
-
-    it('should return shuffled flashcards with subject filter', async () => {
-      mockPrismaService.flashcard.findMany.mockResolvedValue(mockFlashcards);
-
-      const result = await service.getEntryTestFlashcards(mockSubjectId);
+      await service.getEntryTestFlashcards(subjectId);
 
       expect(prisma.flashcard.findMany).toHaveBeenCalledWith({
         where: {
           Topic: {
-            subject_id: mockSubjectId,
+            subject_id: subjectId,
           },
         },
         include: { answers: true },
       });
-      expect(result).toHaveLength(ENTRY_TEST_CARDS_NUMBER);
     });
 
-    it('should apply skip and take to shuffled results', async () => {
-      mockPrismaService.flashcard.findMany.mockResolvedValue(mockFlashcards);
+    it('should apply pagination to shuffled results', async () => {
+      const flashcards = Array.from({ length: 20 }, (_, i) => ({
+        ...mockFlashcard,
+        id: `flashcard-${i}`,
+      }));
+      mockPrismaService.flashcard.findMany.mockResolvedValue(flashcards);
 
-      const skip = 5;
-      const take = 10;
-      const result = await service.getEntryTestFlashcards(
-        undefined,
-        skip,
-        take,
-      );
+      const result = await service.getEntryTestFlashcards(undefined, 5, 10);
 
-      expect(result).toHaveLength(take);
-      expect(result.length).toBeLessThanOrEqual(take);
+      expect(result).toHaveLength(10);
     });
   });
 
   describe('submitAnswer', () => {
-    const mockFlashcard = {
-      id: 'flashcard-123',
-      ef: 2.5,
-      interval: 1,
-      repetitions: 0,
+    const userId = 'user-1';
+    const submitBody = {
+      flashcardId: 'flashcard-1',
+      isCorrect: true,
+      timeSpent: 30,
     };
-
-    it('should update flashcard with correct answer', async () => {
-      const mockUpdatedData = {
-        ef: 2.6,
-        interval: 6,
-        repetitions: 1,
-        nextReview: new Date(),
-      };
-
-      const mockUpdatedFlashcard = { ...mockFlashcard, ...mockUpdatedData };
-
-      mockPrismaService.flashcard.findUnique.mockResolvedValue(mockFlashcard);
-      (calculateSM2 as jest.Mock).mockReturnValue(mockUpdatedData);
-      mockPrismaService.flashcard.update.mockResolvedValue(
-        mockUpdatedFlashcard,
-      );
-
-      const result = await service.submitAnswer(mockCorrectAnswerBody);
-
-      expect(prisma.flashcard.findUnique).toHaveBeenCalledWith({
-        where: { id: mockCorrectAnswerBody.flashcardId },
-      });
-      expect(calculateSM2).toHaveBeenCalledWith(mockFlashcard, true);
-      expect(prisma.flashcard.update).toHaveBeenCalledWith({
-        where: { id: mockCorrectAnswerBody.flashcardId },
-        data: mockUpdatedData,
-      });
-      expect(result).toEqual(mockUpdatedFlashcard);
-    });
-
-    it('should update flashcard with incorrect answer', async () => {
-      const mockUpdatedData = {
-        ef: 2.3,
-        interval: 0,
-        repetitions: 0,
-        nextReview: new Date(),
-      };
-
-      const mockUpdatedFlashcard = { ...mockFlashcard, ...mockUpdatedData };
-
-      mockPrismaService.flashcard.findUnique.mockResolvedValue(mockFlashcard);
-      (calculateSM2 as jest.Mock).mockReturnValue(mockUpdatedData);
-      mockPrismaService.flashcard.update.mockResolvedValue(
-        mockUpdatedFlashcard,
-      );
-
-      const result = await service.submitAnswer(mockIncorrectAnswerBody);
-
-      expect(prisma.flashcard.findUnique).toHaveBeenCalledWith({
-        where: { id: mockIncorrectAnswerBody.flashcardId },
-      });
-      expect(calculateSM2).toHaveBeenCalledWith(mockFlashcard, false);
-      expect(prisma.flashcard.update).toHaveBeenCalledWith({
-        where: { id: mockIncorrectAnswerBody.flashcardId },
-        data: mockUpdatedData,
-      });
-      expect(result).toEqual(mockUpdatedFlashcard);
-    });
 
     it('should throw NotFoundException when flashcard does not exist', async () => {
       mockPrismaService.flashcard.findUnique.mockResolvedValue(null);
 
-      await expect(service.submitAnswer(mockCorrectAnswerBody)).rejects.toThrow(
+      await expect(service.submitAnswer(submitBody, userId)).rejects.toThrow(
         new NotFoundException(ERROR_MESSAGES.FLASHCARD_NOT_FOUND),
       );
+    });
 
-      expect(prisma.flashcard.findUnique).toHaveBeenCalledWith({
-        where: { id: mockCorrectAnswerBody.flashcardId },
+    it('should create new progress for first-time answer', async () => {
+      mockPrismaService.flashcard.findUnique.mockResolvedValue(
+        mockFlashcardWithTopic,
+      );
+      mockPrismaService.userFlashcardProgress.findUnique.mockResolvedValue(
+        null,
+      );
+      mockPrismaService.userFlashcardProgress.upsert.mockResolvedValue(
+        mockUserFlashcardProgress,
+      );
+      mockProgressTrackerService.getMetrixById.mockResolvedValue(null);
+      (utils.calculateSM2 as jest.Mock).mockReturnValue({});
+
+      const result = await service.submitAnswer(submitBody, userId);
+
+      expect(result).toEqual(mockUserFlashcardProgress);
+      expect(prisma.userFlashcardProgress.upsert).toHaveBeenCalledWith({
+        where: {
+          user_id_flashcard_id: {
+            user_id: userId,
+            flashcard_id: submitBody.flashcardId,
+          },
+        },
+        update: { time_spent: 30 },
+        create: {
+          user_id: userId,
+          flashcard_id: submitBody.flashcardId,
+          time_spent: 30,
+        },
       });
-      expect(calculateSM2).not.toHaveBeenCalled();
-      expect(prisma.flashcard.update).not.toHaveBeenCalled();
+    });
+
+    it('should update existing progress with SM2 metrics', async () => {
+      const sm2Result = {
+        interval: 2,
+        repetition: 2,
+        ef: 2.6,
+        nextReview: new Date(),
+      };
+      mockPrismaService.flashcard.findUnique.mockResolvedValue(
+        mockFlashcardWithTopic,
+      );
+      mockPrismaService.userFlashcardProgress.findUnique.mockResolvedValue(
+        mockUserFlashcardProgress,
+      );
+      mockPrismaService.userFlashcardProgress.upsert.mockResolvedValue({
+        ...mockUserFlashcardProgress,
+        ...sm2Result,
+      });
+      mockProgressTrackerService.getMetrixById.mockResolvedValue(
+        mockProgressMetric,
+      );
+      (utils.calculateSM2 as jest.Mock).mockReturnValue(sm2Result);
+
+      await service.submitAnswer(submitBody, userId);
+
+      expect(utils.calculateSM2).toHaveBeenCalledWith(
+        mockUserFlashcardProgress,
+        true,
+      );
+      expect(prisma.userFlashcardProgress.upsert).toHaveBeenCalledWith({
+        where: {
+          user_id_flashcard_id: {
+            user_id: userId,
+            flashcard_id: submitBody.flashcardId,
+          },
+        },
+        update: { ...sm2Result, time_spent: 60 },
+        create: {
+          user_id: userId,
+          flashcard_id: submitBody.flashcardId,
+          time_spent: 60,
+        },
+      });
+    });
+
+    it('should update progress metrics correctly', async () => {
+      mockPrismaService.flashcard.findUnique.mockResolvedValue(
+        mockFlashcardWithTopic,
+      );
+      mockPrismaService.userFlashcardProgress.findUnique.mockResolvedValue(
+        mockUserFlashcardProgress,
+      );
+      mockPrismaService.userFlashcardProgress.upsert.mockResolvedValue(
+        mockUserFlashcardProgress,
+      );
+      mockProgressTrackerService.getMetrixById.mockResolvedValue(
+        mockProgressMetric,
+      );
+      (utils.calculateSM2 as jest.Mock).mockReturnValue({});
+
+      await service.submitAnswer(submitBody, userId);
+
+      const expectedAccuracy = (0.8 * 5 + 1) / 6;
+      expect(progressTracker.updateMetrix).toHaveBeenCalledWith(
+        userId,
+        'subject-1',
+        {
+          completed_topics: 6,
+          accuracy_rate: expectedAccuracy,
+          time_spent: 330,
+        },
+      );
+    });
+
+    it('should handle incorrect answers in accuracy calculation', async () => {
+      const incorrectBody = { ...submitBody, isCorrect: false };
+      mockPrismaService.flashcard.findUnique.mockResolvedValue(
+        mockFlashcardWithTopic,
+      );
+      mockPrismaService.userFlashcardProgress.findUnique.mockResolvedValue(
+        null,
+      );
+      mockPrismaService.userFlashcardProgress.upsert.mockResolvedValue(
+        mockUserFlashcardProgress,
+      );
+      mockProgressTrackerService.getMetrixById.mockResolvedValue(
+        mockProgressMetric,
+      );
+      (utils.calculateSM2 as jest.Mock).mockReturnValue({});
+
+      await service.submitAnswer(incorrectBody, userId);
+
+      const expectedAccuracy = (0.8 * 5 + 0) / 6;
+      expect(progressTracker.updateMetrix).toHaveBeenCalledWith(
+        userId,
+        'subject-1',
+        expect.objectContaining({
+          accuracy_rate: expectedAccuracy,
+        }),
+      );
+    });
+
+    it('should initialize progress metrics when none exist', async () => {
+      mockPrismaService.flashcard.findUnique.mockResolvedValue(
+        mockFlashcardWithTopic,
+      );
+      mockPrismaService.userFlashcardProgress.findUnique.mockResolvedValue(
+        null,
+      );
+      mockPrismaService.userFlashcardProgress.upsert.mockResolvedValue(
+        mockUserFlashcardProgress,
+      );
+      mockProgressTrackerService.getMetrixById.mockResolvedValue(null);
+      (utils.calculateSM2 as jest.Mock).mockReturnValue({});
+
+      await service.submitAnswer(submitBody, userId);
+
+      expect(progressTracker.updateMetrix).toHaveBeenCalledWith(
+        userId,
+        'subject-1',
+        {
+          completed_topics: 1,
+          accuracy_rate: 1,
+          time_spent: 30,
+        },
+      );
     });
   });
 
   describe('getFlashcardsToRepeat', () => {
-    it('should return flashcards due for review without topic filter', async () => {
-      mockPrismaService.flashcard.findMany.mockResolvedValue(mockFlashcards);
+    const userId = 'user-1';
 
-      const result = await service.getFlashcardsToRepeat();
+    it('should return flashcards due for review', async () => {
+      const progresses = [
+        {
+          ...mockUserFlashcardProgress,
+          Flashcard: mockFlashcard,
+        },
+      ];
+      mockPrismaService.userFlashcardProgress.findMany.mockResolvedValue(
+        progresses,
+      );
 
-      expect(prisma.flashcard.findMany).toHaveBeenCalledWith({
+      const result = await service.getFlashcardsToRepeat(userId);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        ...mockFlashcard,
+        interval: mockUserFlashcardProgress.interval,
+        repetition: mockUserFlashcardProgress.repetition,
+        ef: mockUserFlashcardProgress.ef,
+        nextReview: mockUserFlashcardProgress.nextReview,
+      });
+      expect(prisma.userFlashcardProgress.findMany).toHaveBeenCalledWith({
         where: {
-          topic_id: undefined,
+          user_id: userId,
+          Flashcard: undefined,
           nextReview: { lte: expect.any(Date) },
         },
-        include: { answers: true },
+        include: { Flashcard: { include: { answers: true } } },
         skip: 0,
         take: DEFAULT_CARDS_TAKE,
         orderBy: { nextReview: 'asc' },
       });
-      expect(result).toEqual(mockFlashcards);
     });
 
-    it('should return flashcards due for review with topic filter', async () => {
-      mockPrismaService.flashcard.findMany.mockResolvedValue(mockFlashcards);
+    it('should filter by topic when provided', async () => {
+      const topicId = 'topic-1';
+      mockPrismaService.userFlashcardProgress.findMany.mockResolvedValue([]);
 
-      const result = await service.getFlashcardsToRepeat(mockTopicId);
+      await service.getFlashcardsToRepeat(userId, topicId);
 
-      expect(prisma.flashcard.findMany).toHaveBeenCalledWith({
+      expect(prisma.userFlashcardProgress.findMany).toHaveBeenCalledWith({
         where: {
-          topic_id: mockTopicId,
+          user_id: userId,
+          Flashcard: { topic_id: topicId },
           nextReview: { lte: expect.any(Date) },
         },
-        include: { answers: true },
+        include: { Flashcard: { include: { answers: true } } },
         skip: 0,
         take: DEFAULT_CARDS_TAKE,
         orderBy: { nextReview: 'asc' },
       });
-      expect(result).toEqual(mockFlashcards);
     });
 
-    it('should apply custom pagination parameters', async () => {
-      const skip = 10;
-      const take = 25;
+    it('should apply pagination parameters', async () => {
+      const skip = 5;
+      const take = 10;
+      mockPrismaService.userFlashcardProgress.findMany.mockResolvedValue([]);
 
-      mockPrismaService.flashcard.findMany.mockResolvedValue([]);
+      await service.getFlashcardsToRepeat(userId, undefined, skip, take);
 
-      await service.getFlashcardsToRepeat(mockTopicId, skip, take);
-
-      expect(prisma.flashcard.findMany).toHaveBeenCalledWith({
-        where: {
-          topic_id: mockTopicId,
-          nextReview: { lte: expect.any(Date) },
-        },
-        include: { answers: true },
-        skip,
-        take,
-        orderBy: { nextReview: 'asc' },
-      });
+      expect(prisma.userFlashcardProgress.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          skip,
+          take,
+        }),
+      );
     });
 
-    it('should return empty array when no flashcards are due', async () => {
-      mockPrismaService.flashcard.findMany.mockResolvedValue([]);
+    it('should order results by nextReview ascending', async () => {
+      mockPrismaService.userFlashcardProgress.findMany.mockResolvedValue([]);
 
-      const result = await service.getFlashcardsToRepeat();
+      await service.getFlashcardsToRepeat(userId);
 
-      expect(result).toEqual([]);
+      expect(prisma.userFlashcardProgress.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: { nextReview: 'asc' },
+        }),
+      );
     });
   });
 });
