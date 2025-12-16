@@ -56,7 +56,7 @@ describe('StudyPlanService', () => {
       ],
     };
 
-    it('should analyze wrong answers, call AI, and save plan', async () => {
+    it('should analyze wrong answers, call AI, and save plan via PlanTopics relation', async () => {
       const mockAnswers = [
         {
           id: 'a1',
@@ -74,6 +74,7 @@ describe('StudyPlanService', () => {
       (gptFuncs.supportMsg as jest.Mock).mockResolvedValue({
         output_text: JSON.stringify({ message: 'Good job!' }),
       });
+
       (gptFuncs.analiseAnswers as jest.Mock).mockResolvedValue({
         output_text: {
           ids: JSON.stringify([{ topicId: 't1', topic: 'Weak Topic' }]),
@@ -83,7 +84,7 @@ describe('StudyPlanService', () => {
       (prisma.studyPlan.create as jest.Mock).mockResolvedValue({
         id: 'new-plan-id',
         user_id: params.userId,
-        topic_ids: ['t1'],
+        PlanTopics: [{ topic_id: 't1', name: 'Weak Topic', status: 'PENDING' }],
       });
 
       const result = await service.createPlan(params);
@@ -104,13 +105,15 @@ describe('StudyPlanService', () => {
         data: {
           user_id: params.userId,
           subject_id: params.subjectId,
-          topic_ids: ['t1'],
+          PlanTopics: {
+            create: [{ topic_id: 't1', name: 'Weak Topic', status: 'PENDING' }],
+          },
         },
       });
 
       expect(result).toEqual({
         message: 'Good job!',
-        topics: ['t1'],
+        topics: [{ topicId: 't1', topic: 'Weak Topic' }],
       });
     });
 
@@ -131,8 +134,11 @@ describe('StudyPlanService', () => {
       const result = await service.createPlan(params);
 
       expect(gptFuncs.analiseAnswers).not.toHaveBeenCalled();
+
       expect(prisma.studyPlan.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({ topic_ids: [] }),
+        data: expect.objectContaining({
+          PlanTopics: { create: [] },
+        }),
       });
       expect(result.topics).toEqual([]);
     });

@@ -8,11 +8,15 @@ import { PrismaService } from '../common/prisma/prisma.service';
 import { CreateStudyPlanDto } from './dto/create-study-plan.dto';
 import { TopicStatus } from './dto/update-topic-status.dto';
 import { InfoForPlan } from './interface/userPlan';
-import { analiseAnswers, supportMsg, TopicObj } from './gpt_settings/gptReqFunc';
+import {
+  analiseAnswers,
+  supportMsg,
+  TopicObj,
+} from './gpt_settings/gptReqFunc';
 
 @Injectable()
 export class StudyPlanService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   async createPlan(params: InfoForPlan) {
     const { userId, subjectId, results } = params;
@@ -21,7 +25,7 @@ export class StudyPlanService {
 
     const answers = await this.prisma.answer.findMany({
       where: {
-        id: { in: results.map(r => r.answerId) },
+        id: { in: results.map((r) => r.answerId) },
       },
       include: {
         Flashcard: {
@@ -30,7 +34,7 @@ export class StudyPlanService {
       },
     });
 
-    const wrongAnswers = answers.filter(a => !a.isCorrect);
+    const wrongAnswers = answers.filter((a) => !a.isCorrect);
 
     const correctTaskNum = taskNum - wrongAnswers.length;
 
@@ -53,15 +57,14 @@ export class StudyPlanService {
       correctTaskNum,
     });
 
-    const supportResponseParsed = JSON.parse(supportResponse.output_text)
+    const supportResponseParsed = JSON.parse(supportResponse.output_text);
 
-    const message = supportResponseParsed.message
+    const message = supportResponseParsed.message;
 
     let analysedTopics = wrongTopics;
     if (wrongTopics.length > 0) {
       const analyseResponse: any = await analiseAnswers(wrongTopics);
-      const text =
-        analyseResponse.output_text.ids;
+      const text = analyseResponse.output_text.ids;
 
       if (text) {
         try {
@@ -70,22 +73,31 @@ export class StudyPlanService {
           analysedTopics = wrongTopics;
         }
       }
-
     }
 
-    const studyPlan: string[] = []
-    analysedTopics.forEach(elem => {
-      studyPlan.push(elem.topicId)
-    })
-
+    const studyPlan: string[] = [];
+    analysedTopics.forEach((elem) => {
+      studyPlan.push(elem.topicId);
+    });
 
     await this.prisma.studyPlan.create({
       data: {
         user_id: userId,
         subject_id: subjectId,
-        topic_ids: studyPlan
-      }
-    })
+        PlanTopics: {
+          create: analysedTopics.map((t) => ({
+            topic_id: t.topicId,
+            name: t.topic,
+            status: 'PENDING',
+          })),
+        },
+      },
+    });
+
+    return {
+      message,
+      topics: analysedTopics,
+    };
 
     return {
       message,
@@ -93,10 +105,6 @@ export class StudyPlanService {
     };
   }
 
-
-
-
-  // Updates the status of a specific topic
   async updateTopicStatus(
     userId: string,
     topicId: string,
@@ -123,7 +131,6 @@ export class StudyPlanService {
     });
   }
 
-  // Get ALL plans for the user
   async getAllPlansByUser(userId: string) {
     return this.prisma.studyPlan.findMany({
       where: { user_id: userId },
@@ -134,7 +141,6 @@ export class StudyPlanService {
     });
   }
 
-  // Get a SINGLE plan by Subject ID
   async getPlanBySubject(userId: string, subjectId: string) {
     const plan = await this.prisma.studyPlan.findFirst({
       where: {
@@ -143,7 +149,7 @@ export class StudyPlanService {
       },
       include: {
         PlanTopics: {
-          orderBy: { name: 'asc' }, // Order topics alphabetically (or by another field)
+          orderBy: { name: 'asc' },
         },
         Subject: true,
       },

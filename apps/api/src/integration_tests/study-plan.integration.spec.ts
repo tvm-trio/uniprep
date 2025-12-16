@@ -1,8 +1,22 @@
+jest.mock('../study-plan/gpt_settings/gptReqFunc', () => ({
+  supportMsg: jest.fn().mockResolvedValue({
+    output_text: JSON.stringify({ message: 'Integration AI Motivation' }),
+  }),
+  analiseAnswers: jest.fn().mockImplementation(async (topics) => ({
+    output_text: {
+      ids: JSON.stringify(
+        topics.map((t) => ({ topicId: t.topicId, topic: t.topic })),
+      ),
+    },
+  })),
+}));
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { StudyPlanService } from '../study-plan/study-plan.service';
 import { PrismaService } from '../common/prisma';
 import { PrismaModule } from '../common/prisma/prisma.module';
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { TopicStatus } from '../study-plan/dto/update-topic-status.dto';
 
 describe('StudyPlan Service Integration (DB Logic)', () => {
   let moduleRef: TestingModule;
@@ -12,9 +26,10 @@ describe('StudyPlan Service Integration (DB Logic)', () => {
   let userA_Id: string;
   let userB_Id: string;
   let subjectA_Id: string;
-  let subjectB_Id: string;
   let topicA_Id: string;
-  let topicB_Id: string;
+
+  let flashcardId: string;
+  let answerId_Wrong: string;
 
   beforeAll(async () => {
     moduleRef = await Test.createTestingModule({
@@ -25,12 +40,17 @@ describe('StudyPlan Service Integration (DB Logic)', () => {
     service = moduleRef.get<StudyPlanService>(StudyPlanService);
     prisma = moduleRef.get<PrismaService>(PrismaService);
 
-    await prisma.planTopic.deleteMany();
-    await prisma.studyPlan.deleteMany();
-    await prisma.notification.deleteMany();
+    await prisma.userFlashcardProgress.deleteMany();
     await prisma.answer.deleteMany();
+
+    await prisma.planTopic.deleteMany();
+
+    await prisma.studyPlan.deleteMany();
     await prisma.flashcard.deleteMany();
+    await prisma.notification.deleteMany();
+
     await prisma.topic.deleteMany();
+    await prisma.progress.deleteMany();
     await prisma.subject.deleteMany();
     await prisma.user.deleteMany();
 
@@ -45,23 +65,33 @@ describe('StudyPlan Service Integration (DB Logic)', () => {
 
     const subA = await prisma.subject.create({ data: { name: 'Math' } });
     subjectA_Id = subA.id;
-    const subB = await prisma.subject.create({ data: { name: 'History' } });
-    subjectB_Id = subB.id;
 
     const topA = await prisma.topic.create({
       data: { name: 'Algebra', subject_id: subjectA_Id },
     });
     topicA_Id = topA.id;
-    const topB = await prisma.topic.create({
-      data: { name: 'WW2', subject_id: subjectB_Id },
+
+    const card = await prisma.flashcard.create({
+      data: {
+        question: 'What is 2+2?',
+        topic_id: topicA_Id,
+        answers: {
+          create: [
+            { text: '5', isCorrect: false },
+            { text: '4', isCorrect: true },
+          ],
+        },
+      },
+      include: { answers: true },
     });
-    topicB_Id = topB.id;
+    flashcardId = card.id;
+    answerId_Wrong = card.answers.find((a) => !a.isCorrect).id;
   });
 
   afterAll(async () => {
+    await prisma.userFlashcardProgress.deleteMany();
     await prisma.planTopic.deleteMany();
     await prisma.studyPlan.deleteMany();
-    await prisma.notification.deleteMany();
     await prisma.answer.deleteMany();
     await prisma.flashcard.deleteMany();
     await prisma.topic.deleteMany();
@@ -70,55 +100,57 @@ describe('StudyPlan Service Integration (DB Logic)', () => {
     await moduleRef.close();
   });
 
-  describe('createPlan (Validation & Logic)', () => {
-    it('should BLOCK creating a plan if the topic does not belong to the subject', async () => {
-      const invalidDto = {
+  describe('createPlan (AI & DB Logic)', () => {
+    it('should analyze results and create a plan with PlanTopics', async () => {
+      const params = {
+        userId: userA_Id,
         subjectId: subjectA_Id,
-        topics: [{ topicId: topicB_Id }],
+        results: [
+          {
+            topicId: topicA_Id,
+            flashcardId: flashcardId,
+            answerId: answerId_Wrong,
+          },
+        ],
       };
 
-      await expect(service.createPlan(userA_Id, invalidDto)).rejects.toThrow(
-        BadRequestException,
+      const result = await service.createPlan(params);
+
+      expect(result.message).toBe('Integration AI Motivation');
+      expect(result.topics).toContainEqual(
+        expect.objectContaining({ topicId: topicA_Id }),
       );
-    });
 
-    it('should successfully create a valid plan', async () => {
-      const validDto = {
-        subjectId: subjectA_Id,
-        topics: [{ topicId: topicA_Id }],
-      };
-
-      const result = await service.createPlan(userA_Id, validDto);
-
-      expect(result.subject_id).toBe(subjectA_Id);
-      expect(result.PlanTopics).toHaveLength(1);
-      expect(result.PlanTopics[0].topic_id).toBe(topicA_Id);
-    });
-
-    it('should UPDATE existing plan instead of creating duplicate if called twice', async () => {
-      const dto = {
-        subjectId: subjectA_Id,
-        topics: [{ topicId: topicA_Id }],
-      };
-
-      await service.createPlan(userA_Id, dto);
-
-      const result = await service.createPlan(userA_Id, dto);
-
-      const count = await prisma.studyPlan.count({
+      const savedPlan = await prisma.studyPlan.findFirst({
         where: { user_id: userA_Id, subject_id: subjectA_Id },
+        include: { PlanTopics: true },
       });
 
-      expect(count).toBe(1);
-      expect(result.id).toBeDefined();
+      expect(savedPlan).toBeDefined();
+      expect(savedPlan.PlanTopics.length).toBeGreaterThan(0);
+      expect(savedPlan.PlanTopics[0].topic_id).toBe(topicA_Id);
     });
   });
 
-  describe('updateTopicStatus (Security)', () => {
+  describe('updateTopicStatus (Security & Logic)', () => {
     let planTopicId: string;
 
     beforeAll(async () => {
-      const plan = await service.getPlanBySubject(userA_Id, subjectA_Id);
+      const plan = await prisma.studyPlan.create({
+        data: {
+          user_id: userA_Id,
+          subject_id: subjectA_Id,
+          PlanTopics: {
+            create: {
+              topic_id: topicA_Id,
+              name: 'Algebra',
+              status: 'PENDING',
+            },
+          },
+        },
+        include: { PlanTopics: true },
+      });
+
       planTopicId = plan.PlanTopics[0].id;
     });
 
@@ -126,15 +158,22 @@ describe('StudyPlan Service Integration (DB Logic)', () => {
       const result = await service.updateTopicStatus(
         userA_Id,
         planTopicId,
-        'COMPLETED' as any,
+        TopicStatus.COMPLETED,
       );
-      expect(result.status).toBe('COMPLETED');
+      expect(result.status).toBe(TopicStatus.COMPLETED);
     });
 
     it('should FORBID another user from updating the status', async () => {
       await expect(
-        service.updateTopicStatus(userB_Id, planTopicId, 'COMPLETED' as any),
+        service.updateTopicStatus(userB_Id, planTopicId, TopicStatus.COMPLETED),
       ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw NotFound if PlanTopic does not exist', async () => {
+      const fakeId = '00000000-0000-0000-0000-000000000000';
+      await expect(
+        service.updateTopicStatus(userA_Id, fakeId, TopicStatus.COMPLETED),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 });
