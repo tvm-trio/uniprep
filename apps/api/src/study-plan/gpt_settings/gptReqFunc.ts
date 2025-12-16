@@ -1,12 +1,20 @@
 import OpenAI from "openai";
 
-function getOpenAIClient() {
-    return new OpenAI({
-        apiKey: process.env.GPT_API_KEY,
-    });
-}
+let client: OpenAI | null = null;
 
-const client = getOpenAIClient()
+function getOpenAIClient() {
+    if (!process.env.GPT_API_KEY) {
+        throw new Error("GPT_API_KEY is not set");
+    }
+
+    if (!client) {
+        client = new OpenAI({
+            apiKey: process.env.GPT_API_KEY,
+        });
+    }
+
+    return client;
+}
 
 export interface TopicObj {
     topicId: string;
@@ -18,16 +26,16 @@ export interface Param {
     correctTaskNum: number;
 }
 
-
 export async function supportMsg(params: Param) {
     const { taskNum, correctTaskNum } = params;
+
+    const client = getOpenAIClient();
 
     return await client.responses.create({
         model: "gpt-5-nano",
         instructions:
             "Generate a short motivational message for a student based on test results.",
         input: `Total tasks: ${taskNum}, correct answers: ${correctTaskNum}`,
-
         text: {
             format: {
                 name: "support_message",
@@ -35,24 +43,23 @@ export async function supportMsg(params: Param) {
                 schema: {
                     type: "object",
                     properties: {
-                        message: { type: "string" }
+                        message: { type: "string" },
                     },
                     required: ["message"],
-                    additionalProperties: false
-                }
-            }
-        }
+                    additionalProperties: false,
+                },
+            },
+        },
     } as any);
 }
 
-
-
 export async function analiseAnswers(topics: TopicObj[]) {
+    const client = getOpenAIClient(); // ← І ТУТ
+
     return await client.responses.create({
         model: "gpt-5-nano",
         instructions: "Sort topics by chronology",
         input: JSON.stringify(topics),
-
         text: {
             format: {
                 name: "sorted_topics",
@@ -62,15 +69,13 @@ export async function analiseAnswers(topics: TopicObj[]) {
                     properties: {
                         ids: {
                             type: "array",
-                            items: { type: "string" }
-                        }
+                            items: { type: "string" },
+                        },
                     },
                     required: ["ids"],
-                    additionalProperties: false
-                }
-
-            }
+                    additionalProperties: false,
+                },
+            },
         },
-
     } as any);
 }
