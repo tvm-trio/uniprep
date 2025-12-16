@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { StudyPlanController } from '../study-plan/study-plan.controller';
 import { StudyPlanService } from '../study-plan/study-plan.service';
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { ForbiddenException } from '@nestjs/common';
 
 const mockStudyPlanService = {
   createPlan: jest.fn(),
@@ -13,10 +13,6 @@ const mockStudyPlanService = {
 describe('StudyPlanController', () => {
   let controller: StudyPlanController;
   const mockRequest = { user: { sub: 'test-user-id' } };
-  const mockPlanDto = {
-    subjectId: 'subject-id',
-    topics: [{ topicId: 'topic-id' }],
-  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -38,25 +34,40 @@ describe('StudyPlanController', () => {
     expect(controller).toBeDefined();
   });
 
-  describe('createStudyPlan', () => {
-    it('should call service.createPlan with userId from token', async () => {
-      mockStudyPlanService.createPlan.mockResolvedValue({ id: 'plan-1' });
+  describe('createStudyPlan (Generate)', () => {
+    it('should call service.createPlan with the full body', async () => {
+      const body = {
+        userId: 'test-user-id',
+        subjectId: 'sub-1',
+        results: [{ topicId: 't1', flashcardId: 'f1', answerId: 'a1' }],
+      };
 
-      const result = await controller.createStudyPlan(
-        mockPlanDto as any,
-        mockRequest as any,
-      );
+      const expectedResponse = {
+        message: 'Plan generated',
+        topics: ['t1'],
+      };
 
-      expect(mockStudyPlanService.createPlan).toHaveBeenCalledWith(
-        'test-user-id',
-        mockPlanDto,
-      );
-      expect(result.data).toEqual({ id: 'plan-1' });
+      mockStudyPlanService.createPlan.mockResolvedValue(expectedResponse);
+
+      const result = await controller.createStudyPlan(body);
+
+      expect(mockStudyPlanService.createPlan).toHaveBeenCalledWith(body);
+      expect(result).toEqual(expectedResponse);
     });
   });
 
-  describe('getMyLatestPlanBySubject', () => {
-    it('should call service.getPlanBySubject with userId from token and subjectId from param', async () => {
+  describe('getAllMyPlans', () => {
+    it('should call service.getAllPlansByUser with userId', async () => {
+      mockStudyPlanService.getAllPlansByUser.mockResolvedValue([]);
+      await controller.getAllMyPlans(mockRequest);
+      expect(mockStudyPlanService.getAllPlansByUser).toHaveBeenCalledWith(
+        'test-user-id',
+      );
+    });
+  });
+
+  describe('getPlanBySubject', () => {
+    it('should call service.getPlanBySubject with extracted userId', async () => {
       const subjectId = 'subject-abc';
       mockStudyPlanService.getPlanBySubject.mockResolvedValue({});
 
@@ -70,7 +81,7 @@ describe('StudyPlanController', () => {
   });
 
   describe('updateTopicStatus', () => {
-    it('should call service.updateTopicStatus with correct IDs and status', async () => {
+    it('should call service.updateTopicStatus', async () => {
       const topicId = 'topic-1';
       const statusDto = { status: 'COMPLETED' };
       mockStudyPlanService.updateTopicStatus.mockResolvedValue({
@@ -78,7 +89,7 @@ describe('StudyPlanController', () => {
         status: 'COMPLETED',
       });
 
-      await controller.updateTopicStatus(
+      const result = await controller.updateTopicStatus(
         topicId,
         statusDto as any,
         mockRequest as any,
@@ -89,35 +100,21 @@ describe('StudyPlanController', () => {
         topicId,
         'COMPLETED',
       );
+      expect(result.data.status).toBe('COMPLETED');
     });
-  });
 
-  describe('updateTopicStatus (Exception)', () => {
-    const topicId = 'topic-1';
-    const statusDto = { status: 'COMPLETED' };
-
-    it('should throw ForbiddenException when service denies access', async () => {
+    it('should throw ForbiddenException if service throws', async () => {
       mockStudyPlanService.updateTopicStatus.mockRejectedValue(
-        new ForbiddenException(
-          'You do not have permission to update this topic.',
-        ),
+        new ForbiddenException('Denied'),
       );
 
       await expect(
         controller.updateTopicStatus(
-          topicId,
-          statusDto as any,
+          'topic-1',
+          { status: 'COMPLETED' } as any,
           mockRequest as any,
         ),
       ).rejects.toThrow(ForbiddenException);
-
-      await expect(
-        controller.updateTopicStatus(
-          topicId,
-          statusDto as any,
-          mockRequest as any,
-        ),
-      ).rejects.toThrow('You do not have permission to update this topic.');
     });
   });
 });

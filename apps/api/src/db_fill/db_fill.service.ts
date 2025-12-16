@@ -1,9 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Body, Injectable } from '@nestjs/common';
 import { extractTopicsFromHistory } from './aditional_func/filterfunc';
 import { PrismaClient } from '@prisma/client';
 import { filterHistoryData } from './aditional_func/filterFuncQuestion';
 import history_data from './history_raw.json';
 import { HistoryTopic, FilteredTask } from './entities/interface';
+import { Subject } from 'rxjs';
 
 interface InfoObj {
   subject_id: string;
@@ -12,7 +13,7 @@ interface InfoObj {
 
 @Injectable()
 export class DbFillService {
-  constructor(private prisma: PrismaClient) {}
+  constructor(private prisma: PrismaClient) { }
 
   async findAll() {
     return this.prisma.topic.findMany();
@@ -29,6 +30,10 @@ export class DbFillService {
     }
     const subjectID: string = subject.id;
     const topics: string[] = extractTopicsFromHistory(history_data as any);
+
+    if (topics.length == 0) {
+      return "Error during topics parsing"
+    }
 
     const infoToInsert: InfoObj[] = [];
 
@@ -99,4 +104,43 @@ export class DbFillService {
       topicsWithNoText: [...new Set(topicsWithNoText)],
     };
   }
+
+  async insertSub(subject: string) {
+    return await this.prisma.subject.create({
+      data: {
+        name: subject
+      }
+    })
+  }
+
+  async deleteEmptyTopics() {
+    const deleted = await this.prisma.topic.deleteMany({
+      where: {
+        Flashcard: {
+          none: {}
+        }
+      }
+    });
+
+    return {
+      message: "Empty topics deleted",
+      deleted: deleted.count
+    };
+  }
+
+  async deleteEmptyFlashcards() {
+    const deleted = await this.prisma.flashcard.deleteMany({
+      where: {
+        answers: {
+          none: {}
+        }
+      }
+    });
+
+    return {
+      message: "Empty flashcards deleted",
+      deleted: deleted.count
+    };
+  }
+
 }

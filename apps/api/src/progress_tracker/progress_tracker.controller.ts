@@ -13,7 +13,7 @@ import { type MetrixBodyType } from './types';
 
 @Controller('progress-tracker')
 export class ProgressTrackerController {
-  constructor(private progressTrackerService: ProgressTrackerService) {}
+  constructor(private progressTrackerService: ProgressTrackerService) { }
 
   @Get('all-metrix')
   async getMetrix() {

@@ -1,28 +1,28 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { StudyPlanService } from './study-plan.service';
 import { PrismaService } from '../common/prisma/prisma.service';
-import {
-  BadRequestException,
-  ForbiddenException,
-  NotFoundException,
-} from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { TopicStatus } from './dto/update-topic-status.dto';
+import * as gptFuncs from './gpt_settings/gptReqFunc';
+
+jest.mock('./gpt_settings/gptReqFunc');
 
 describe('StudyPlanService', () => {
   let service: StudyPlanService;
   let prisma: PrismaService;
 
   const mockPrismaService = {
+    answer: {
+      findMany: jest.fn(),
+    },
     studyPlan: {
       create: jest.fn(),
+      findMany: jest.fn(),
       findFirst: jest.fn(),
     },
     planTopic: {
       findUnique: jest.fn(),
       update: jest.fn(),
-    },
-    topic: {
-      findMany: jest.fn(),
     },
   };
 
@@ -46,61 +46,101 @@ describe('StudyPlanService', () => {
     expect(service).toBeDefined();
   });
 
-  describe('createPlan', () => {
-    const userId = 'user-uuid';
-    const dto = {
+  describe('createPlan (AI Flow)', () => {
+    const params = {
+      userId: 'user-uuid',
       subjectId: 'subject-uuid',
-      topics: [{ topicId: 'topic-1' }, { topicId: 'topic-2' }],
+      results: [
+        { topicId: 't1', flashcardId: 'f1', answerId: 'a1' },
+        { topicId: 't1', flashcardId: 'f2', answerId: 'a2' },
+      ],
     };
 
-    it('should create a plan with nested topics when topics are valid', async () => {
-      // Mock the Topic validation check
-      const validTopics = [
-        { id: 'topic-1', name: 'Algebra' },
-        { id: 'topic-2', name: 'Geometry' },
+    it('should analyze wrong answers, call AI, and save plan via PlanTopics relation', async () => {
+      const mockAnswers = [
+        {
+          id: 'a1',
+          isCorrect: false,
+          Flashcard: { Topic: { id: 't1', name: 'Weak Topic' } },
+        },
+        {
+          id: 'a2',
+          isCorrect: true,
+          Flashcard: { Topic: { id: 't1', name: 'Weak Topic' } },
+        },
       ];
-      (prisma.topic.findMany as jest.Mock).mockResolvedValue(validTopics);
+      (prisma.answer.findMany as jest.Mock).mockResolvedValue(mockAnswers);
 
-      // Mock the Creation
-      const expectedResult = { id: 'plan-1', user_id: userId, ...dto };
-      (prisma.studyPlan.create as jest.Mock).mockResolvedValue(expectedResult);
+      (gptFuncs.supportMsg as jest.Mock).mockResolvedValue({
+        output_text: JSON.stringify({ message: 'Good job!' }),
+      });
 
-      const result = await service.createPlan(userId, dto);
-
-      expect(result).toEqual(expectedResult);
-
-      // Verify validation was called
-      expect(prisma.topic.findMany).toHaveBeenCalledWith({
-        where: {
-          id: { in: ['topic-1', 'topic-2'] },
-          subject_id: dto.subjectId,
+      (gptFuncs.analiseAnswers as jest.Mock).mockResolvedValue({
+        output_text: {
+          ids: JSON.stringify([{ topicId: 't1', topic: 'Weak Topic' }]),
         },
       });
 
-      // Verify creation was called with names snapshot from the DB
+      (prisma.studyPlan.create as jest.Mock).mockResolvedValue({
+        id: 'new-plan-id',
+        user_id: params.userId,
+        PlanTopics: [{ topic_id: 't1', name: 'Weak Topic', status: 'PENDING' }],
+      });
+
+      const result = await service.createPlan(params);
+
+      expect(prisma.answer.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: { in: ['a1', 'a2'] } },
+        }),
+      );
+
+      expect(gptFuncs.supportMsg).toHaveBeenCalledWith({
+        taskNum: 2,
+        correctTaskNum: 1,
+      });
+      expect(gptFuncs.analiseAnswers).toHaveBeenCalled();
+
       expect(prisma.studyPlan.create).toHaveBeenCalledWith({
         data: {
-          user_id: userId,
-          subject_id: dto.subjectId,
+          user_id: params.userId,
+          subject_id: params.subjectId,
           PlanTopics: {
-            create: [
-              { topic_id: 'topic-1', name: 'Algebra', status: 'PENDING' },
-              { topic_id: 'topic-2', name: 'Geometry', status: 'PENDING' },
-            ],
+            create: [{ topic_id: 't1', name: 'Weak Topic', status: 'PENDING' }],
           },
         },
-        include: { PlanTopics: true },
+      });
+
+      expect(result).toEqual({
+        message: 'Good job!',
+        topics: [{ topicId: 't1', topic: 'Weak Topic' }],
       });
     });
 
-    it('should throw BadRequestException if topics are invalid or count mismatches', async () => {
-      (prisma.topic.findMany as jest.Mock).mockResolvedValue([
-        { id: 'topic-1', name: 'Algebra' },
-      ]);
+    it('should handle empty wrong answers gracefully', async () => {
+      const mockAnswers = [
+        {
+          id: 'a1',
+          isCorrect: true,
+          Flashcard: { Topic: { id: 't1', name: 'Topic' } },
+        },
+      ];
+      (prisma.answer.findMany as jest.Mock).mockResolvedValue(mockAnswers);
 
-      await expect(service.createPlan(userId, dto)).rejects.toThrow(
-        BadRequestException,
-      );
+      (gptFuncs.supportMsg as jest.Mock).mockResolvedValue({
+        output_text: JSON.stringify({ message: 'Perfect!' }),
+      });
+
+      const result = await service.createPlan(params);
+
+      expect(gptFuncs.analiseAnswers).not.toHaveBeenCalled();
+
+      expect(prisma.studyPlan.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          PlanTopics: { create: [] },
+        }),
+      });
+      expect(result.topics).toEqual([]);
     });
   });
 
@@ -110,7 +150,6 @@ describe('StudyPlanService', () => {
     const newStatus = TopicStatus.COMPLETED;
 
     it('should update status if topic exists and user is owner', async () => {
-      // Mock findUnique to return topic AND the parent StudyPlan for ownership check
       (prisma.planTopic.findUnique as jest.Mock).mockResolvedValue({
         id: topicId,
         StudyPlan: { user_id: userId },
@@ -121,13 +160,8 @@ describe('StudyPlanService', () => {
         status: newStatus,
       });
 
-      const result = await service.updateTopicStatus(
-        userId,
-        topicId,
-        newStatus,
-      );
+      await service.updateTopicStatus(userId, topicId, newStatus);
 
-      expect(result.status).toEqual(TopicStatus.COMPLETED);
       expect(prisma.planTopic.update).toHaveBeenCalledWith({
         where: { id: topicId },
         data: { status: newStatus },
@@ -137,7 +171,7 @@ describe('StudyPlanService', () => {
     it('should throw ForbiddenException if user is NOT the owner', async () => {
       (prisma.planTopic.findUnique as jest.Mock).mockResolvedValue({
         id: topicId,
-        StudyPlan: { user_id: 'other-user-id' },
+        StudyPlan: { user_id: 'other-user' },
       });
 
       await expect(
@@ -149,8 +183,23 @@ describe('StudyPlanService', () => {
       (prisma.planTopic.findUnique as jest.Mock).mockResolvedValue(null);
 
       await expect(
-        service.updateTopicStatus(userId, 'bad-id', newStatus),
+        service.updateTopicStatus(userId, topicId, newStatus),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('Get Plans', () => {
+    it('getAllPlansByUser should return plans', async () => {
+      (prisma.studyPlan.findMany as jest.Mock).mockResolvedValue(['plan1']);
+      const result = await service.getAllPlansByUser('u1');
+      expect(result).toEqual(['plan1']);
+    });
+
+    it('getPlanBySubject should throw NotFound if not found', async () => {
+      (prisma.studyPlan.findFirst as jest.Mock).mockResolvedValue(null);
+      await expect(service.getPlanBySubject('u1', 's1')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

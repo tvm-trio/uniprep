@@ -8,7 +8,7 @@
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "nest start",
+    "start": "npm nest start",
     "dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
@@ -16,7 +16,9 @@
     "test": "dotenv -e .env.test.local -- jest -i",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
-    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand"
+    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+    "test:e2e": "dotenv -e .env.test.local -- jest --testRegex \".e2e-spec.ts$\" --testTimeout=60000 --runInBand",
+    "test:integration": "dotenv -e .env.test.local -- jest -i --testRegex \".integration.spec.ts$\""
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -48,6 +50,8 @@
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.1",
+    "@repo/eslint-config": "*",
+    "@repo/typescript-config": "*",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^22.19.0",
@@ -58,6 +62,7 @@
     "eslint-plugin-prettier": "^5.2.2",
     "globals": "^16.0.0",
     "jest": "^30.0.0",
+    "openai": "^6.13.0",
     "prettier": "^3.4.2",
     "prisma": "^6.19.0",
     "source-map-support": "^0.5.21",

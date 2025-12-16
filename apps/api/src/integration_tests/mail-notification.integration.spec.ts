@@ -1,5 +1,3 @@
-// 1. MOCK NODEMAILER & HANDLEBARS (Must be at the top)
-// We mock these to prevent real network calls and avoid the import error
 jest.mock('nodemailer-express-handlebars', () => () => () => {});
 jest.mock('nodemailer');
 
@@ -18,19 +16,16 @@ describe('Mail & Notification Integration', () => {
   let prisma: PrismaService;
   let sendMailMock: jest.Mock;
 
-  // Test Data
   let testUserId: string;
   const testEmail = 'integration-test@example.com';
 
   beforeAll(async () => {
-    // 2. SETUP MOCKS
     sendMailMock = jest.fn();
     (nodemailer.createTransport as jest.Mock).mockReturnValue({
       sendMail: sendMailMock,
-      use: jest.fn(), // Mock the 'use' method for handlebars
+      use: jest.fn(),
     });
 
-    // 3. COMPILE MODULE
     moduleRef = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({ isGlobal: true }),
@@ -43,14 +38,11 @@ describe('Mail & Notification Integration', () => {
     mailService = moduleRef.get<MailService>(MailService);
     prisma = moduleRef.get<PrismaService>(PrismaService);
 
-    // 4. PREPARE DB
-    // Clean up potentially stale data
     await prisma.notification.deleteMany({
       where: { User: { email: testEmail } },
     });
     await prisma.user.deleteMany({ where: { email: testEmail } });
 
-    // Create a real user for the test
     const user = await prisma.user.create({
       data: {
         email: testEmail,
@@ -61,7 +53,6 @@ describe('Mail & Notification Integration', () => {
   });
 
   afterAll(async () => {
-    // 5. CLEANUP
     if (testUserId) {
       await prisma.notification.deleteMany({ where: { user_id: testUserId } });
       await prisma.user.delete({ where: { id: testUserId } });
@@ -75,7 +66,6 @@ describe('Mail & Notification Integration', () => {
 
   describe('Email Sending Flow', () => {
     it('should send an email and automatically create a SUCCESS notification in DB', async () => {
-      // ARRANGE
       sendMailMock.mockResolvedValue({ messageId: 'test-message-id' });
       const mailOptions = {
         to: testEmail,
@@ -83,12 +73,10 @@ describe('Mail & Notification Integration', () => {
         text: 'Testing success flow',
       };
 
-      // ACT
       await mailService.sendMail(mailOptions, undefined, {
         userId: testUserId,
       });
 
-      // ASSERT 1: Nodemailer was called
       expect(sendMailMock).toHaveBeenCalledTimes(1);
       expect(sendMailMock).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -97,7 +85,6 @@ describe('Mail & Notification Integration', () => {
         }),
       );
 
-      // ASSERT 2: Database has a notification record
       const notifications = await prisma.notification.findMany({
         where: { user_id: testUserId },
       });
@@ -108,7 +95,6 @@ describe('Mail & Notification Integration', () => {
     });
 
     it('should handle SMTP errors and automatically create a FAILURE notification in DB', async () => {
-      // ARRANGE
       sendMailMock.mockRejectedValue({
         code: 'EAUTH',
         message: 'Invalid login',
@@ -119,12 +105,10 @@ describe('Mail & Notification Integration', () => {
         text: 'Testing failure flow',
       };
 
-      // ACT & ASSERT
       await expect(
         mailService.sendMail(mailOptions, undefined, { userId: testUserId }),
-      ).rejects.toThrow(); // Expect InternalServerErrorException
+      ).rejects.toThrow();
 
-      // ASSERT 2: Database has a FAILURE notification record
       const notifications = await prisma.notification.findMany({
         where: {
           user_id: testUserId,
@@ -133,7 +117,7 @@ describe('Mail & Notification Integration', () => {
       });
 
       expect(notifications.length).toBe(1);
-      expect(notifications[0].message).toContain('EAUTH'); // Checks for error code
+      expect(notifications[0].message).toContain('EAUTH');
       expect(notifications[0].message).toContain('Integration Test Failure');
     });
   });
