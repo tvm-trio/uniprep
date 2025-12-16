@@ -6,7 +6,7 @@ import { ERROR_MESSAGES } from '@common/constants';
 
 @Injectable()
 export class ProgressTrackerService {
-  constructor(private prisma: PrismaClient) {}
+  constructor(private prisma: PrismaClient) { }
 
   async getMetrix() {
     const metrics = await this.prisma.progress.findMany();

@@ -16,7 +16,9 @@
     "test": "dotenv -e .env.test.local -- jest -i",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
-    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand"
+    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+    "test:e2e": "dotenv -e .env.test.local -- jest --testRegex \".e2e-spec.ts$\" --testTimeout=60000 --runInBand",
+    "test:integration": "dotenv -e .env.test.local -- jest -i --testRegex \".integration.spec.ts$\""
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

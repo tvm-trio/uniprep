@@ -8,4 +8,4 @@ import { ProgressTrackerController } from './progress_tracker.controller';
   controllers: [ProgressTrackerController],
   exports: [ProgressTrackerService],
 })
-export class ProgressTrackerModule {}
+export class ProgressTrackerModule { }

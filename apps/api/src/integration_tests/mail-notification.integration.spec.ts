@@ -1,6 +1,6 @@
 // 1. MOCK NODEMAILER & HANDLEBARS (Must be at the top)
 // We mock these to prevent real network calls and avoid the import error
-jest.mock('nodemailer-express-handlebars', () => () => () => {});
+jest.mock('nodemailer-express-handlebars', () => () => () => { });
 jest.mock('nodemailer');
 
 import { Test, TestingModule } from '@nestjs/testing';
