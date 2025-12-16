@@ -1,8 +1,12 @@
 import OpenAI from "openai";
 
-const client = new OpenAI({
-    apiKey: process.env.GPT_API_KEY,
-});
+function getOpenAIClient() {
+    return new OpenAI({
+        apiKey: process.env.GPT_API_KEY,
+    });
+}
+
+const client = getOpenAIClient()
 
 export interface TopicObj {
     topicId: string;
@@ -13,6 +17,7 @@ export interface Param {
     taskNum: number;
     correctTaskNum: number;
 }
+
 
 export async function supportMsg(params: Param) {
     const { taskNum, correctTaskNum } = params;
