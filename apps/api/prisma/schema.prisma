@@ -138,7 +138,7 @@ model UserFlashcardProgress {
   xata_updatedat DateTime  @default(now()) @db.Timestamptz(6)
   xata_id        String    @unique @default(dbgenerated("('rec_'::text || (xata_private.xid())::text)"))
   xata_version   Int       @default(0)
-  id             String    @id @db.Uuid
+  id             String    @id @default(uuid()) @db.Uuid
   user_id        String    @db.Uuid
   flashcard_id   String    @db.Uuid
   interval       Int       @default(1)
@@ -146,7 +146,7 @@ model UserFlashcardProgress {
   ef             Float     @default(2.5)
   nextReview     DateTime  @default(now())
   time_spent     Int
-  updated_at     DateTime
+  updated_at     DateTime  @updatedAt
   Flashcard      Flashcard @relation(fields: [flashcard_id], references: [id])
   User           User      @relation(fields: [user_id], references: [id])
 
