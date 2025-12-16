@@ -20,6 +20,12 @@ export class ProgressTrackerController {
     return this.progressTrackerService.getMetrix();
   }
 
+  @Get('all-user-metrix')
+  async getAllMetrixById(@Req() req) {
+    const userId = req.user.sub;
+    return this.progressTrackerService.getAllMetrixById(userId);
+  }
+
   @Get('metrix/:subjectId')
   async getMetrixById(@Req() req, @Param('subjectId') subjectId: string) {
     const userId = req.user.sub;

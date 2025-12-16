@@ -13,6 +13,16 @@ export class ProgressTrackerService {
     return metrics;
   }
 
+  async getAllMetrixById(userId: string) {
+    const metric = await this.prisma.progress.findMany({
+      where: {
+        user_id: userId
+      },
+    });
+
+    return metric;
+  }
+
   async getMetrixById(userId: string, subjectId: string) {
     const metric = await this.prisma.progress.findUnique({
       where: {
