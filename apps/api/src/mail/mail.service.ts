@@ -1,7 +1,6 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
-import hbs from 'nodemailer-express-handlebars';
 import { join } from 'path';
 import { MailOptions } from './interfaces/mail-options.interface';
 import { NotificationService } from '../notification/notification.service';
@@ -10,10 +9,11 @@ import { NotificationService } from '../notification/notification.service';
 export class MailService {
   private transporter: nodemailer.Transporter;
   private templateTransporter: nodemailer.Transporter;
+  private hbs: any;
 
   constructor(
-    private configService: ConfigService,
-    private notificationService: NotificationService,
+    private readonly configService: ConfigService,
+    private readonly notificationService: NotificationService,
   ) {
     const mailConfig = {
       service: 'gmail',
@@ -25,17 +25,31 @@ export class MailService {
 
     this.transporter = nodemailer.createTransport(mailConfig);
     this.templateTransporter = nodemailer.createTransport(mailConfig);
+  }
 
-    const viewsPath = join(process.cwd(), 'src', 'mail', 'templates');
+  async onModuleInit() {
+    const mod = await import('nodemailer-express-handlebars');
+    this.hbs = mod.default ?? mod;
+
+    const viewsPath = join(
+      process.cwd(),
+      'dist',
+      'apps',
+      'api',
+      'src',
+      'mail',
+      'templates',
+    );
+
     console.log('Template View Path:', viewsPath);
 
     this.templateTransporter.use(
       'compile',
-      hbs({
+      this.hbs({
         viewEngine: {
           extname: '.hbs',
           partialsDir: viewsPath,
-          defaultLayout: "false",
+          defaultLayout: false,
         },
         viewPath: viewsPath,
         extName: '.hbs',
@@ -56,9 +70,9 @@ export class MailService {
       html: options.html,
     };
 
-    let info;
-
     try {
+      let info;
+
       if (template) {
         mailOptions.template = template;
         mailOptions.context = context;
@@ -67,17 +81,13 @@ export class MailService {
         info = await this.transporter.sendMail(mailOptions);
       }
 
-      console.log('Email sent:', info.messageId);
-
       await this.notificationService.createLog({
         user_id: context.userId,
         message: `Email successfully sent: ${options.subject}`,
       });
 
       return info;
-    } catch (error) {
-      console.error('Mail Service Error:', error);
-
+    } catch (error: any) {
       await this.notificationService.createLog({
         user_id: context.userId,
         message: `Email FAILED (${error.code || 'SMTP_ERROR'}): ${options.subject}`,
