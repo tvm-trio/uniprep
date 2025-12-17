@@ -24,7 +24,7 @@ COPY --from=builder /uniprep/apps/api/package.json ./apps/api/package.json
 
 EXPOSE 8000
 
-CMD ["node", "apps/api/dist/main.js"]
+CMD ["node", "apps/api/dist/src/main.js"]
 
 
 
