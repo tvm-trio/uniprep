@@ -85,7 +85,7 @@ describe('StudyPlan Service Integration (DB Logic)', () => {
       include: { answers: true },
     });
     flashcardId = card.id;
-    answerId_Wrong = card.answers.find((a) => !a.isCorrect).id;
+    answerId_Wrong = card.answers.find((a) => !a.isCorrect)?.id || '';
   });
 
   afterAll(async () => {
@@ -127,8 +127,11 @@ describe('StudyPlan Service Integration (DB Logic)', () => {
       });
 
       expect(savedPlan).toBeDefined();
-      expect(savedPlan.PlanTopics.length).toBeGreaterThan(0);
-      expect(savedPlan.PlanTopics[0].topic_id).toBe(topicA_Id);
+      expect(savedPlan).not.toBeNull();
+      if (savedPlan) {
+        expect(savedPlan.PlanTopics.length).toBeGreaterThan(0);
+        expect(savedPlan.PlanTopics[0].topic_id).toBe(topicA_Id);
+      }
     });
   });
 

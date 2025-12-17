@@ -59,3 +59,5 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 .xata
 migations
 .xatarc
+# stryker temp files
+.stryker-tmp
