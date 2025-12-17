@@ -82,7 +82,7 @@ describe('StudyPlan (e2e)', () => {
       include: { answers: true },
     });
     testFlashcardId = flashcard.id;
-    testWrongAnswerId = flashcard.answers.find((a) => !a.isCorrect).id;
+    testWrongAnswerId = flashcard.answers.find((a) => !a.isCorrect)?.id || '';
 
     const authResponse = await request(app.getHttpServer())
       .post('/auth/sign-up')
@@ -94,6 +94,9 @@ describe('StudyPlan (e2e)', () => {
     const user = await prisma.user.findUnique({
       where: { email: 'e2e@test.com' },
     });
+    if (!user) {
+      throw new Error('User not found after sign-up');
+    }
     testUserId = user.id;
   }, 60000);
 
@@ -142,6 +145,9 @@ describe('StudyPlan (e2e)', () => {
     });
 
     expect(savedPlan).toBeDefined();
+    if (!savedPlan) {
+      throw new Error('savedPlan is null');
+    }
     expect(savedPlan.PlanTopics.length).toBe(1);
     expect(savedPlan.PlanTopics[0].topic_id).toBe(testTopicId);
   });

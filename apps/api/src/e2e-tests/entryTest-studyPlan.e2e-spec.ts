@@ -46,6 +46,7 @@ describe('EntryTest - StudyPlan Flow (e2e)', () => {
     await app.init();
     prisma = app.get(PrismaService);
 
+    await prisma.progress.deleteMany();
     await prisma.userFlashcardProgress.deleteMany();
     await prisma.planTopic.deleteMany();
     await prisma.studyPlan.deleteMany();
@@ -90,10 +91,14 @@ describe('EntryTest - StudyPlan Flow (e2e)', () => {
     const user = await prisma.user.findUnique({
       where: { email: 'e2e@test.com' },
     });
+    if (!user) {
+      throw new Error('User not found after sign-up');
+    }
     testUserId = user.id;
   }, 60000);
 
   afterAll(async () => {
+    await prisma.progress.deleteMany();
     await prisma.userFlashcardProgress.deleteMany();
     await prisma.planTopic.deleteMany();
     await prisma.studyPlan.deleteMany();
@@ -152,6 +157,10 @@ describe('EntryTest - StudyPlan Flow (e2e)', () => {
     });
 
     expect(savedPlan).toBeDefined();
+    expect(savedPlan).not.toBeNull();
+    if (!savedPlan) {
+      throw new Error('savedPlan is null');
+    }
     expect(savedPlan.PlanTopics.length).toBe(1);
     expect(savedPlan.PlanTopics[0].topic_id).toBe(testTopicId);
 

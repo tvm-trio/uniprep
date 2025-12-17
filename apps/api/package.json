@@ -52,6 +52,9 @@
     "@nestjs/testing": "^11.0.1",
     "@repo/eslint-config": "*",
     "@repo/typescript-config": "*",
+    "@stryker-mutator/core": "^9.4.0",
+    "@stryker-mutator/jest-runner": "^9.4.0",
+    "@stryker-mutator/typescript-checker": "^9.4.0",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^22.19.0",
@@ -62,6 +65,7 @@
     "eslint-plugin-prettier": "^5.2.2",
     "globals": "^16.0.0",
     "jest": "^30.0.0",
+    "jest-environment-jsdom": "^30.2.0",
     "openai": "^6.13.0",
     "prettier": "^3.4.2",
     "prisma": "^6.19.0",
@@ -72,7 +76,8 @@
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.20.0"
+    "typescript-eslint": "^8.20.0",
+    "ws": "^8.18.3"
   },
   "jest": {
     "moduleFileExtensions": [
@@ -80,7 +85,10 @@
       "json",
       "ts"
     ],
-    "rootDir": "src",
+    "rootDir": ".",
+    "roots": [
+      "<rootDir>/src"
+    ],
     "testRegex": ".*\\.(spec|e2e-spec)\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
@@ -90,12 +98,12 @@
     ],
     "coverageDirectory": "../coverage",
     "moduleNameMapper": {
-      "^@common/(.*)$": "<rootDir>/common/$1",
-      "^@auth/(.*)$": "<rootDir>/auth/$1"
+      "^@common/(.*)$": "<rootDir>/src/common/$1",
+      "^@auth/(.*)$": "<rootDir>/src/auth/$1"
     },
-    "testEnvironment": "<rootDir>/../jest-custom-env.ts",
+    "testEnvironment": "jsdom",
     "setupFiles": [
-      "<rootDir>/../jest-setup.ts"
+      "<rootDir>/jest-setup.ts"
     ]
   }
 }

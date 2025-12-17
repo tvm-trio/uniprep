@@ -85,7 +85,7 @@ describe('StudyPlan Service Integration (DB Logic)', () => {
       include: { answers: true },
     });
     flashcardId = card.id;
-    answerId_Wrong = card.answers.find((a) => !a.isCorrect).id;
+    answerId_Wrong = card.answers.find((a) => !a.isCorrect)?.id || '';
   });
 
   afterAll(async () => {
@@ -127,8 +127,11 @@ describe('StudyPlan Service Integration (DB Logic)', () => {
       });
 
       expect(savedPlan).toBeDefined();
-      expect(savedPlan.PlanTopics.length).toBeGreaterThan(0);
-      expect(savedPlan.PlanTopics[0].topic_id).toBe(topicA_Id);
+      expect(savedPlan).not.toBeNull();
+      if (savedPlan) {
+        expect(savedPlan.PlanTopics.length).toBeGreaterThan(0);
+        expect(savedPlan.PlanTopics[0].topic_id).toBe(topicA_Id);
+      }
     });
   });
 
@@ -152,7 +155,7 @@ describe('StudyPlan Service Integration (DB Logic)', () => {
       });
 
       planTopicId = plan.PlanTopics[0].id;
-    });
+    }, 60000);
 
     it('should allow the OWNER to update status', async () => {
       const result = await service.updateTopicStatus(
