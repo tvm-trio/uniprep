@@ -1,25 +1,29 @@
-FROM node:20-alpine AS builder
-
-RUN apk add --no-cache python3 make g++
-
-WORKDIR /uniprep
-COPY . .
-
-ARG NODE_APP_DIR=apps/api
-RUN npm ci -w $NODE_APP_DIR
-
-RUN npm run build -w $NODE_APP_DIR
-
-RUN mkdir /app \
-    && cp -R $NODE_APP_DIR /app \
-    && cd /app \
-    && npm prune --production
-
-FROM node:20-alpine
+FROM node:18-alpine AS builder
 
 WORKDIR /app
-COPY --from=builder /app /app
+
+COPY package.json package-lock.json turbo.json ./
+
+COPY apps/api/package.json apps/api/
+
+RUN npm ci
+
+COPY . .
+
+RUN npx turbo run build --filter=api
+
+FROM node:18-alpine
+
+WORKDIR /app
+
+COPY --from=builder /app/node_modules ./node_modules
+
+COPY --from=builder /app/apps/api/dist ./apps/api/dist
+COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
 
 EXPOSE 8000
 
-CMD ["npm", "run", "start"]
+CMD ["node", "apps/api/dist/main.js"]
+
+
+
