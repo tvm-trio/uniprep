@@ -1,10 +1,10 @@
 FROM node:18-alpine AS builder
 
-WORKDIR /app
+WORKDIR /uniprep
 
-COPY package.json package-lock.json turbo.json ./
+COPY package.json package-lock.json ./
 
-COPY apps/api/package.json apps/api/
+COPY apps/api/package.json apps/api/package-lock.json apps/api/
 
 RUN npm ci
 
@@ -16,10 +16,10 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /uniprep/node_modules ./node_modules
 
-COPY --from=builder /app/apps/api/dist ./apps/api/dist
-COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
+COPY --from=builder /uniprep/apps/api/dist ./apps/api/dist
+COPY --from=builder /uniprep/apps/api/package.json ./apps/api/package.json
 
 EXPOSE 8000
 
