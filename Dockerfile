@@ -9,6 +9,8 @@ RUN npm ci
 
 COPY . .
 
+RUN npx prisma generate
+
 RUN npx turbo run build --filter=api
 
 FROM node:18-alpine
