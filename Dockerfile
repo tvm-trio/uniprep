@@ -9,7 +9,7 @@ RUN npm ci
 
 COPY . .
 
-RUN npx prisma generate
+RUN npx prisma generate --schema=apps/api/prisma/schema.prisma
 
 RUN npx turbo run build --filter=api
 
