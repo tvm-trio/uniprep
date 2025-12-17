@@ -4,7 +4,7 @@ WORKDIR /uniprep
 
 COPY package.json package-lock.json ./
 
-COPY apps/api/package.json apps/api/package-lock.json apps/api/
+COPY apps/api/package.json  apps/api/
 
 RUN npm ci
 
