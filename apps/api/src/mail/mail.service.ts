@@ -33,9 +33,9 @@ export class MailService {
       'compile',
       hbs({
         viewEngine: {
-          extName: '.hbs',
+          extname: '.hbs',
           partialsDir: viewsPath,
-          defaultLayout: false,
+          defaultLayout: "false",
         },
         viewPath: viewsPath,
         extName: '.hbs',
@@ -60,12 +60,10 @@ export class MailService {
 
     try {
       if (template) {
-        // Template Transporter if a template is provided
         mailOptions.template = template;
         mailOptions.context = context;
         info = await this.templateTransporter.sendMail(mailOptions);
       } else {
-        // Generic Transporter for plain emails
         info = await this.transporter.sendMail(mailOptions);
       }
 
