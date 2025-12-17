@@ -3,8 +3,7 @@ FROM node:18-alpine AS builder
 WORKDIR /uniprep
 
 COPY package.json package-lock.json ./
-
-COPY apps/api/package.json  apps/api/
+COPY apps/api/package.json apps/api/
 
 RUN npm ci
 
