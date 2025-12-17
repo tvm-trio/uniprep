@@ -9,7 +9,7 @@ RUN npm ci
 
 COPY . .
 
-RUN npx run build --filter=api
+RUN npx turbo run build --filter=api
 
 FROM node:18-alpine
 
