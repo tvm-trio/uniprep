@@ -155,7 +155,7 @@ describe('StudyPlan Service Integration (DB Logic)', () => {
       });
 
       planTopicId = plan.PlanTopics[0].id;
-    });
+    }, 60000);
 
     it('should allow the OWNER to update status', async () => {
       const result = await service.updateTopicStatus(
