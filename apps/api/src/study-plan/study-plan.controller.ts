@@ -17,20 +17,17 @@ import { Result } from './interface/userPlan';
 export class StudyPlanController {
   constructor(private readonly studyPlanService: StudyPlanService) { }
 
-  //Used by the AI Service (or internal logic) to save a newly generated plan.
   @Post("generate-study-plan")
   async createStudyPlan(@Body() body: { userId: string, subjectId: string, results: Result[] }) {
     return this.studyPlanService.createPlan(body)
   }
 
-  // Get aLL study plans for the user
   @Get()
   async getAllMyPlans(@Req() req) {
     const userId = req.user.sub;
     return this.studyPlanService.getAllPlansByUser(userId);
   }
 
-  // Get a specific study plan by Subject ID
   @Get('subject/:subjectId')
   async getPlanBySubject(
     @Param('subjectId', ParseUUIDPipe) subjectId: string,

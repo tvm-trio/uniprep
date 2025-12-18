@@ -54,7 +54,7 @@ export async function supportMsg(params: Param) {
 }
 
 export async function analiseAnswers(topics: TopicObj[]) {
-    const client = getOpenAIClient(); // ← І ТУТ
+    const client = getOpenAIClient();
 
     return await client.responses.create({
         model: "gpt-5-nano",
