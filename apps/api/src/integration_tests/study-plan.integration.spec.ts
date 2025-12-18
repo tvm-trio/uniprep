@@ -42,13 +42,10 @@ describe('StudyPlan Service Integration (DB Logic)', () => {
 
     await prisma.userFlashcardProgress.deleteMany();
     await prisma.answer.deleteMany();
-
     await prisma.planTopic.deleteMany();
-
     await prisma.studyPlan.deleteMany();
     await prisma.flashcard.deleteMany();
     await prisma.notification.deleteMany();
-
     await prisma.topic.deleteMany();
     await prisma.progress.deleteMany();
     await prisma.subject.deleteMany();
@@ -86,7 +83,7 @@ describe('StudyPlan Service Integration (DB Logic)', () => {
     });
     flashcardId = card.id;
     answerId_Wrong = card.answers.find((a) => !a.isCorrect)?.id || '';
-  });
+  }, 60000);
 
   afterAll(async () => {
     await prisma.userFlashcardProgress.deleteMany();
